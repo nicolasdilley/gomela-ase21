@@ -263,17 +263,17 @@ This will go through each project in ```./commits.csv```, generate all the Prome
 verify them.
 
 Gomela can also parse the results of the verification to extract: 
-  - The 5 stats for the number of models generated per project 
-  - The 5 stats for the number of models generated per package 
-  - The 5 stats for the number of communication parameters per model
-  - The 5 stats of the time taken to verify each project, model and valuation
+  - The five-number summary for the number of models generated per project 
+  - The five-number summary for the number of models generated per package 
+  - The five-number summary for the number of communication parameters per model
+  - The five-number summary of the time taken to verify each project, model and valuation
 
-It can also calculate the 5 stats for the results of all verification or only
+It can also calculate the five-number summary for the results of all verification or only
 for valuation that resulted in a strictly positive score:
-  - The 5 stats for the global deadlock found
-  - The 5 stats for the channel safety errors found
-  - The 5 stats for the waitgroup safety errors found
-  - The 5 stats for the mutex safety errors found
+  - The five-number summary for the global deadlock found
+  - The five-number summary for the channel safety errors found
+  - The five-number summary for the waitgroup safety errors found
+  - The five-number summary for the mutex safety errors found
 
 To get these run: 
 ```./gomela full_stats result_current_date/log.csv commits.csv result_current_date/verification.csv```
