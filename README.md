@@ -51,25 +51,25 @@ The image also runs a webserver that can be access via the address ```0.0.0.0:80
 
 ## Step 1 : Understanding and using Gomela
 
-Gomela is a full-scale verification tool that verifies message passing
-concurrency in Go programs. Gomela takes either the name of a Go's github
+Gomela is a verification tool that verifies the concurrent aspect
+of Go programs. Gomela takes either the name of a GitHub
 project or a list of Go files as input and generates Promela models. These
-models are then fed to SPIN to verify that the models are free of deadlocks.
-Gomela also offers the ability to the user to give bounds to the statically
-unknown communication-related parameters in the models to improve the
+models are then fed to SPIN to verify that the models are free of errors such as deadlocks etc.
+Gomela lets users give values to the statically
+unknown concurrency parameters in the models to improve the
 accuracy of the verification. These parameters are the variables in the
 program that affects the number of goroutines or the size of channels in the
 Go program.
 
 
-### Hello world example
+### Hello World example
 
 
-To start of we are going to verify a simple concurrent hello world example.
+We are going to verify a simple concurrent Hello World program.
 
-The docker image also contains a webserver that is accessible via the address
+Reminder: The docker image also contains a webserver that is accessible via the address
 ```0.0.0.0:8000``` in your browser. This will make it easy to download file
-from the image on your own computer.  
+from the container on your own computer.
 
 
 Here is the code of the example:
@@ -107,7 +107,7 @@ running:
 * ```mkdir source && mv hello.go source```.
   * The name of the folder (```source``` in this case) does not matter.
 
-When this steps is done, to generate promela models from the Go source and to verify them using SPIN run :
+When this steps is done, to generate promela models from the Go source and to verify them using SPIN run:
 * ```./gomela fs ./source ```
 
 The output of the command line should be:
@@ -124,10 +124,10 @@ Model deadlock : false.
 -------------------------------
 ```
 
-This tells you that there is neither a safety or a model deadlock in the model.
-false in the case means that Gomela did not find the corresponding bug in the model.
+This tells you that there is neither a safety nor a model deadlock in the model, i.e.,
+false means that Gomela did not find such a bug in the model.
 
-This also means that Gomela reports that there are no safety errors or model
+In this case Gomela reports that there are no safety errors or model
 deadlocks in the Go source file ```source/hello.go```.
 
 If we tweak the code to introduce a deadlock by removing one or both of the
@@ -157,17 +157,16 @@ file. In the code above, we have specified that the name of the package was
 ```main_main.pml```.
 
 
-### Verifying running example "Preload" from paper (Fig. 1)
+### Verifying the paper's running example (Function preload() in Fig. 1)
 
-The function ```Preload``` from the paper in Fig. 1 can be found in [examples/preload_simplifed.go](https://github.com/nicolasdilley/Gomela/blob/rewrite/examples/preload/preload_simplifed.go). 
+The function ```preload``` from the paper in Fig. 1 can be found in [examples/preload_simplifed.go](https://github.com/nicolasdilley/Gomela/blob/rewrite/examples/preload/preload_simplifed.go). 
 This function contains a deadlock when ```0 < runtime.NumCPU()``` and ```0 < n <|trees|−1```
 
-To verify that the function indeed contains a deadlock, we need Gomela to generate a model :
+To verify this program, we need Gomela to generate a model:
 
 ```./gomela fs examples/preload```
 
-This creates a folder ```./result_current_date``` which contains the Promela model genarated in ```./results_current_data/preload/main++preload8.pml```. (make sure to replace "current_date" with the corresponding date at which the results folder was
-created)
+This creates a folder ```./result_current_date``` which contains the Promela model genarated in ```./results_<current_date>/preload/main++preload8.pml```. (Make sure to replace <current_date> with the corresponding date at which the results folder was created)
 
 If we look inside the model by running 
 ```cat result_current_date/preload/main++preload8.pml```
@@ -202,24 +201,23 @@ Model deadlock : true.
 
 ```
 
-which states that Gomela has found a model deadlock in the model.
+which states that Gomela has found a model deadlock in the model for these values.
 
 
 ``` ./gomela fs s author/project_name```
 
 
-### Verifying a project from Github. 
+### Verifying a Go project from Github. 
 
-To verify a github project: 
-Ie. to verify [golang/go](https://github.com/golang/go/)
+To verify a github project, e.g., to verify [golang/go](https://github.com/golang/go/), run
 
 ```./gomela fs s golang/go```
 
-The result of the verification will be printed to the terminal as it running.
-However, all the results of the verification can be found in  ```./results_current_date/verification.csv```
+The result of the verification will be printed to the terminal as it is running.
+Aditionally all the results of the verification can be found in  ```./results_<current_date>/verification.csv```
 which reports all the results of the verification of each model extracted from the project.
 
-There is one line per verification. 
+There is one line per verification (i.e., valued model). 
 A line is composed of: 
   - Column 1: The name of the model
   - Column 2: Whether the verification contained any valued optional parameter (1 if it did, 0 otherwise)
@@ -238,20 +236,19 @@ A line is composed of:
 
 ## Step 2 Reproducing Experimental Results for RQ1.
 
-To apply Gomela on all benchmarks (which can be found in ```./benchmarks```)
+To apply Gomela on all benchmark examples (which can be found in ```./benchmarks```)
 in the paper simply run: 
 
 ``` ./gomela fs benchmarks ```
 
 which will output all the results of the verification.
 
-Those information can also be found in ```results_current_date/verification.csv```
+Those information can also be found in ```results_<current_date>/verification.csv```
 which reports all the results of the verification of each benchmark.
 
-The spreadsheet with all results from evaluating the benchmarks with Gomela, GCatch and Godel2  
+The spreadsheet with all results from evaluating the benchmarks with Gomela, GCatch and Godel2
 can be found [here](https://github.com/nicolasdilley/gomela-ase21/blob/main/benchmarks/benchmark-results.csv).
-A result of 1 means that the model did contain the specified bug, 0 if it was free of the bug and -1 if the tool
-could find a result.
+In this table, 1 means that the model did contain the specified bug, 0 means that it was free of the bug and -1 means that the tool could not find a result (e.g., crash).
 
 The information in the spreadsheet are displayed as follow:
   - Column 1: Name of the go file 
@@ -281,7 +278,7 @@ The information in the spreadsheet are displayed as follow:
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
-To automate the verification of the 99 github projects, run:
+To automate the verification of the 99 GitHub projects, run:
 
 ```./gomela fs l commits.csv```
 
@@ -303,12 +300,13 @@ for valuation that resulted in a strictly positive score:
   - The five-number summary for the mutex safety errors found
 
 To get these run: 
-```./gomela full_stats result_current_date/log.csv commits.csv result_current_date/verification.csv```
+```./gomela full_stats result_<current_date>/log.csv commits.csv result_current_date/verification.csv```
 
 
 ## Installing Gomela on your own machine
 
-(This tutorial is primarly intended at Linux/MacOs users)
+This tutorial is primarly intended at MacOs users. Linux users should
+be able to follow similar steps (see also the Dockerfile).
 
 To use Gomela, there are two main requirement:
 
