@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateIfStmt(s *ast.IfStmt) (b *promela_ast.BlockStmt, defers *promela_ast.BlockStmt, err *ParseError) {

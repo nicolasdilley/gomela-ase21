@@ -2,10 +2,11 @@ package promela
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/types"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateRangeStmt(s *ast.RangeStmt) (b *promela_ast.BlockStmt, defers *promela_ast.BlockStmt, err *ParseError) {
@@ -83,8 +84,8 @@ func (m *Model) translateRangeStmt(s *ast.RangeStmt) (b *promela_ast.BlockStmt, 
 		if err1 != nil {
 			err = err1
 		}
-
-		do_guard.Body = &promela_ast.BlockStmt{List: []promela_ast.Stmt{rcv, i}}
+		num_msgs_0 := &promela_ast.AssignStmt{Lhs: &promela_ast.Ident{Name: "num_msgs"}, Rhs: &promela_ast.Ident{Name: "0"}}
+		do_guard.Body = &promela_ast.BlockStmt{List: []promela_ast.Stmt{num_msgs_0, rcv, i}}
 		d.Guards = append(d.Guards, do_guard)
 		b.List = append(b.List, d, for_label)
 
@@ -107,6 +108,7 @@ func (m *Model) translateRangeStmt(s *ast.RangeStmt) (b *promela_ast.BlockStmt, 
 		}
 		block_stmt := s1
 
+		fmt.Println(for_label)
 		if m.spawns(s.Body, false) {
 			// need to change the for loop into a bounded for loop
 			b.List = append(b.List, &promela_ast.ForStmt{For: m.Fileset.Position(s.Pos()), Lb: &promela_ast.Ident{Name: "0"}, Ub: &promela_ast.Ident{Name: ub.Name + "-1"}, Body: block_stmt})

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,11 +32,11 @@ const (
 	MAX_NUMBER_TESTS = 256
 )
 
-var (
-	BOUNDS_TO_CHECK = []interface{}{0, 1, 3} // Change these to provide custom parameters to the verification
-)
+func VerifyModels(models []os.FileInfo, dir_name string, bounds_to_check []interface{}) {
 
-func VerifyModels(models []os.FileInfo, dir_name string) {
+	if len(bounds_to_check) == 0 {
+		bounds_to_check = []interface{}{0, 1, 3}
+	}
 	// Print CSV
 	f, err := os.OpenFile("./"+RESULTS_FOLDER+"/verification.csv",
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -48,12 +47,16 @@ func VerifyModels(models []os.FileInfo, dir_name string) {
 		return
 	}
 
+	fmt.Println(models)
 	// verify each model
 	for _, model := range models {
 		if strings.HasSuffix(model.Name(), ".pml") { // make sure its a .pml file
 			fmt.Println("Verifying model : " + model.Name())
-			path, _ := filepath.Abs(RESULTS_FOLDER + "/" + dir_name + "/" + model.Name())
 
+			path := RESULTS_FOLDER + "/" + model.Name()
+			if dir_name != "" {
+				path, _ = filepath.Abs(RESULTS_FOLDER + "/" + dir_name + "/" + model.Name())
+			}
 			content, err := ioutil.ReadFile(path)
 			if err != nil {
 				fmt.Println("Could not read content of : ", path, err)
@@ -62,7 +65,6 @@ func VerifyModels(models []os.FileInfo, dir_name string) {
 				file_content := string(content)
 				lines := strings.Split(file_content, "\n")
 
-				bounds_to_check := BOUNDS_TO_CHECK
 				bounds := [][]interface{}{}
 				comm_params := []string{} // the name of the mandatory param
 
@@ -96,39 +98,43 @@ func VerifyModels(models []os.FileInfo, dir_name string) {
 					}
 				} else {
 
+					copy_path := strings.Replace(path, ".pml", "-copy.pml", 1)
 					if len(comm_params) > 0 {
 
 						d := cartesian.Iter(bounds...)
 
 						for bound := range d {
+
 							toPrint := file_content
 							for _, b := range bound {
 								toPrint = strings.Replace(toPrint, "??", fmt.Sprint(b), 1)
 							}
 
-							err := os.Remove(path)
-							if err != nil {
-								log.Fatal(err)
-							}
-							ioutil.WriteFile(path, []byte(toPrint), 0644)
+							ioutil.WriteFile(copy_path, []byte(toPrint), 0644)
 
 							lines = strings.Split(toPrint, "\n")
 							bound_str := []string{}
 							for _, b := range bound {
 								bound_str = append(bound_str, fmt.Sprint(b))
 							}
-							ver, ok := verifyModel(path, model_name, git_link, f, comm_params, optional_params, bound_str)
+							ver, ok := verifyModel(copy_path, model_name, git_link, f, comm_params, optional_params, bound_str)
 							if !ok {
+								os.Remove(copy_path)
 								break
 							}
 							if optional_params > 0 {
-								verifyWithOptParams(ver, path, model_name, lines, git_link, f, comm_params, bound_str, optional_params)
+								verifyWithOptParams(ver, copy_path, model_name, lines, git_link, f, comm_params, bound_str, optional_params, bounds_to_check)
+							} else {
+								os.Remove(copy_path)
 							}
 						}
 					} else {
-						ver, ok := verifyModel(path, model_name, git_link, f, []string{}, optional_params, []string{})
+						ioutil.WriteFile(copy_path, []byte(file_content), 0644)
+						ver, ok := verifyModel(copy_path, model_name, git_link, f, []string{}, optional_params, []string{})
 						if optional_params > 0 && ok {
-							verifyWithOptParams(ver, path, model_name, lines, git_link, f, []string{}, []string{}, optional_params)
+							verifyWithOptParams(ver, copy_path, model_name, lines, git_link, f, []string{}, []string{}, optional_params, bounds_to_check)
+						} else {
+							os.Remove(copy_path)
 						}
 					}
 				}
@@ -143,27 +149,44 @@ func verifyModel(path string, model_name string, git_link string, f *os.File, co
 	ver := &VerificationRun{Send_on_close_safety_error: false, Close_safety_error: false, Negative_counter_safety_error: false, Global_deadlock: true, Timeout: false}
 
 	var output bytes.Buffer
+	var err_output bytes.Buffer
+
+	// Copy file and verify the copied file
 
 	// Verify with SPIN
-	command := exec.Command("timeout", "30", "spin", "-run", "-DVECTORSZ=4508", "-m100000000", "-w26", path, "-f")
+	fmt.Println("verifying : ", path)
+	command := exec.Command("timeout", "30", "spin", "-run", "-DVECTORSZ=2056", "-m10000000", "-w26", path, "-f")
 	command.Stdout = &output
+	command.Stderr = &err_output
 	pre := time.Now()
-	command.Run()
+	err := command.Run()
 	after := time.Now()
 
 	ver.Spin_timing = after.Sub(pre).Milliseconds()
 	executable := parseResults(output.String(), ver)
 
-	if output.String() == "" || ver.Timeout {
+	if (output.String() == "" && err_output.String() == "" && err == nil) || ver.Timeout {
+		fmt.Println("Ici ", path, " : out ", output.String(), " err : ", err_output.String())
+		fmt.Println(command.Stderr)
+		fmt.Println(executable)
 		toPrint := model_name + ",0,timeout,timeout,timeout,timeout,timeout,timeout,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_opt_params) + ",,,\n"
 		if _, err := f.WriteString(toPrint); err != nil {
 			panic(err)
 		}
-	} else if !executable {
-		toPrint := model_name + ",0,the model is not executable,,,,,,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_opt_params) + ",,," + ver.Err + ",,\n"
+	} else if !executable || err_output.String() != "" || err != nil {
+		fmt.Println(err_output.String())
+		toPrint := model_name + ",0,the model is not executable,,,,,,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_opt_params) + ",,," + ver.Err + " : " + err_output.String()
 
-		if _, err := f.WriteString(toPrint); err != nil {
-			panic(err)
+		if err != nil {
+			toPrint += " : " + err.Error()
+		}
+
+		toPrint += ",,\n"
+
+		if f != nil {
+			if _, err := f.WriteString(toPrint); err != nil {
+				panic(err)
+			}
 		}
 		return ver, executable
 	} else {
@@ -200,20 +223,21 @@ func verifyModel(path string, model_name string, git_link string, f *os.File, co
 			fmt.Sprint(num_opt_params) + "," +
 			comm_par_info + "," +
 			git_link + ",\n"
-
-		if _, err := f.WriteString(toPrint); err != nil {
-			panic(err)
+		if f != nil {
+			if _, err := f.WriteString(toPrint); err != nil {
+				panic(err)
+			}
 		}
 	}
 
 	return ver, executable
 }
 
-func verifyWithOptParams(ver *VerificationRun, path string, model_name string, lines []string, git_link string, f *os.File, comm_params []string, bound []string, num_optionnal int) {
+func verifyWithOptParams(ver *VerificationRun, path string, model_name string, lines []string, git_link string, f *os.File, comm_params []string, bound []string, num_optionnal int, bounds_to_check []interface{}) {
 	if (ver.Global_deadlock) && !ver.Timeout && ver.Err == "" {
 		// add values to the candidates param
 
-		opt_bounds := generateOptBounds(num_optionnal)
+		opt_bounds := generateOptBounds(num_optionnal, bounds_to_check)
 
 		num_tests := 0
 		false_alarm_bounds := [][]interface{}{}
@@ -247,17 +271,13 @@ func verifyWithOptParams(ver *VerificationRun, path string, model_name string, l
 						}
 					}
 
-					err := os.Remove(path) // delete previous model
-					if err != nil {
-						log.Fatal(err)
-					}
-
 					toPrint := ""
 
 					for _, l1 := range new_lines { // generate new content of file with updated value for opt param
 						toPrint += l1 + "\n"
 					}
 
+					os.Remove(path)
 					ioutil.WriteFile(path, []byte(toPrint), 0644) // rewrite new model with updated bounds
 
 					ver := VerificationRun{
@@ -267,26 +287,33 @@ func verifyWithOptParams(ver *VerificationRun, path string, model_name string, l
 						Global_deadlock:               true,
 						Timeout:                       false}
 					var output bytes.Buffer
+					var err_output bytes.Buffer
 
 					// Verify with SPIN
+					fmt.Println("verifying : ", path)
 					command := exec.Command("timeout", "30", "spin", "-run", "-DVECTORSZ=4508", "-m10000000", "-w26", path, "-f")
 					command.Stdout = &output
+					command.Stderr = &err_output
 					pre := time.Now()
-					command.Run()
+					err := command.Run()
 					after := time.Now()
-
 					ver.Spin_timing = after.Sub(pre).Milliseconds()
 
 					executable := parseResults(output.String(), &ver)
 					num_tests++
-					if output.String() == "" || ver.Timeout {
+					if (output.String() == "" && err_output.String() == "" && err == nil) || ver.Timeout {
 						toPrint := model_name + ",0,timeout with opt param : " + fixed_bound + ",timeout,timeout,timeout,timeout,timeout,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_optionnal) + ",,,\n"
 						if _, err := f.WriteString(toPrint); err != nil {
 							panic(err)
 						}
-					} else if !executable {
-						toPrint := model_name + ",1,the model is not executable,,,,,,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_optionnal) + ",,," + ver.Err + ",,\n"
+					} else if !executable || err_output.String() != "" || err != nil {
+						toPrint := model_name + ",1,the model is not executable,,,,,,,," + strconv.Itoa(len(comm_params)) + "," + strconv.Itoa(num_optionnal) + ",,," + ver.Err
 
+						if err != nil {
+							toPrint += "err :" + err.Error()
+						}
+
+						toPrint += ",,\n"
 						if _, err := f.WriteString(toPrint); err != nil {
 							panic(err)
 						}
@@ -343,7 +370,48 @@ func verifyWithOptParams(ver *VerificationRun, path string, model_name string, l
 				break
 			}
 		}
+
+		os.Remove(path)
 	}
+}
+
+func verifyModelWithSpecificValues(model string, params []string) {
+	lines := strings.Split(model, "\n")
+	replaced := 0
+	for _, param := range params {
+
+		for i, line := range lines {
+			if strings.Contains(line, "-2") && strings.Contains(line, "int") && strings.Contains(line, " = ") {
+				lines[i] = strings.Replace(line, "-2", param, 1)
+				replaced++
+				break
+			}
+
+			if strings.Contains(line, "??") {
+				lines[i] = strings.Replace(line, "??", param, 1)
+				replaced++
+				break
+			}
+		}
+	}
+
+	if replaced != len(params) {
+		panic(fmt.Sprintf("The number of values for comm params %d does not match the number of comm param in the model %d", len(params), replaced))
+	}
+
+	toPrint := ""
+
+	for _, line := range lines {
+		toPrint += line + "\n"
+	}
+
+	// generate new model
+	ioutil.WriteFile("./temp.pml", []byte(toPrint), 0664)
+	// verify it
+	verifyModel("./temp.pml", os.Args[2], "", nil, []string{}, 0, params)
+	// delete it
+	// os.Remove("./temp.pml")
+
 }
 
 func parseResults(result string, ver *VerificationRun) bool {
@@ -382,17 +450,15 @@ func parseResults(result string, ver *VerificationRun) bool {
 		splitted := strings.Split(result, "\n")
 
 		if strings.Contains(splitted[0], "error") || strings.Contains(splitted[0], "Error") {
-
-			fmt.Println("The model is not executable : ")
 			err := ""
-			for _, line := range splitted {
-				err += line
+			if strings.Contains(splitted[0], "VECTORSZ too small") {
+				err = "VECTORSZ too small"
+			} else {
+				err = splitted[0]
 			}
 			ver.Err = err
 			return false
 		}
-
-		fmt.Println(splitted[len(splitted)-1])
 
 		if strings.Contains(splitted[len(splitted)-1], "Depth=") {
 			// Its a timeout
@@ -417,8 +483,9 @@ func parseResults(result string, ver *VerificationRun) bool {
 	return true
 }
 
-func generateOptBounds(num_optionnals int) [][]interface{} {
-	bounds_to_check := append([]interface{}{-2}, BOUNDS_TO_CHECK) // Add also the unknown operator
+func generateOptBounds(num_optionnals int, bounds_to_check []interface{}) [][]interface{} {
+
+	bounds_to_check = append([]interface{}{-2}, bounds_to_check...)
 	bounds := [][]interface{}{}
 	for i := 0; i < num_optionnals; i++ {
 		bounds = append(bounds, bounds_to_check)

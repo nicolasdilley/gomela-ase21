@@ -3,7 +3,7 @@ package promela_ast
 import (
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/utils"
+	"github.com/nicolasdilley/gomela/promela/utils"
 )
 
 // a do statement is a repetition construct that is used to repete certain action that might or might not be executable.

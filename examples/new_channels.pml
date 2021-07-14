@@ -1,4 +1,4 @@
-// /Users/redfloyd/go/src/github.com/xxx/toolX/source/test/test.go
+// /Users/redfloyd/go/src/github.com/nicolasdilley/gomela/source/test/test.go
 
 #define a_size 1
 #define b_size 1

@@ -3,7 +3,7 @@ package promela
 import (
 	"go/ast"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateDeclStmt(stmt *ast.DeclStmt) (b *promela_ast.BlockStmt, err *ParseError) {

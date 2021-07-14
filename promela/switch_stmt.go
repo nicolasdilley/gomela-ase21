@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateSwitchStmt(s *ast.SwitchStmt) (b *promela_ast.BlockStmt, defers *promela_ast.BlockStmt, err *ParseError) {

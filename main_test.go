@@ -86,14 +86,14 @@ func TestMain(t *testing.T) {
 	}
 	ioutil.WriteFile(test_projects, []byte(projects_list), 0766)
 
-	fmt.Println("Building promela")
+	fmt.Println("Building gomela")
 	building := exec.Command("go", "build")
 	building.Stderr = os.Stdout
 	building.Stdout = os.Stdout
 	building.Run()
 
 	fmt.Println("Starting the modelling phase")
-	modelling := exec.Command("./promela", "-l", test_projects)
+	modelling := exec.Command("./gomela", "-l", test_projects)
 	modelling.Stderr = os.Stdout
 	modelling.Stdout = os.Stdout
 	err := modelling.Run()

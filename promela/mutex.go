@@ -4,7 +4,7 @@ import (
 	"errors"
 	"go/ast"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) TranslateMutexOp(call_expr *ast.CallExpr) (b *promela_ast.BlockStmt, err *ParseError) {

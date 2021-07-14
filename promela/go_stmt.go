@@ -1,16 +1,19 @@
 package promela
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
 	"go/ast"
+	"go/printer"
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
-	"github.com/nicolasdilley/ToolX/promela/promela_types"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_types"
 )
 
 func (m *Model) TranslateGoStmt(s *ast.GoStmt, isMain bool) (b *promela_ast.BlockStmt, err *ParseError) {
@@ -111,11 +114,18 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 		name := "Actual Param"
 		if commPar.Candidate {
 			name = "Candidate Param"
+
+			var_name := commPar.Name.Name
+
+			if _, err := strconv.Atoi(var_name); err != nil {
+				var_name = "var_" + var_name
+			}
 			if commPar.Mandatory {
 				def := m.GenerateDefine(commPar) // generate the define statement out of the commpar
-				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.DeclStmt{Name: &promela_ast.Ident{Name: commPar.Name.Name}, Rhs: &promela_ast.Ident{Name: def}, Types: promela_types.Int}}, proc.Body.List...)
+
+				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name}, Mandatory: true, Rhs: &promela_ast.Ident{Name: def}, Types: promela_types.Int}}, proc.Body.List...)
 			} else {
-				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.DeclStmt{Name: &promela_ast.Ident{Name: commPar.Name.Name}, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}, Types: promela_types.Int}}, proc.Body.List...)
+				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name + commPar.Name.Name}, Mandatory: false, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}, Types: promela_types.Int}}, proc.Body.List...)
 			}
 		} else {
 			proc.Params = append(proc.Params, &promela_ast.Param{Name: commPar.Name.Name, Types: promela_types.Int})
@@ -133,13 +143,27 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 				if call_expr.Args[commPar.Pos] != nil {
 					ident = &promela_ast.Ident{Name: "not_found_" + strconv.Itoa(m.Fileset.Position(call_expr.Pos()).Line)}
 				} else {
-					ident = &promela_ast.Ident{Name: commPar.Name.Name + strconv.Itoa(m.Fileset.Position(call_expr.Pos()).Line)}
+
+					var_name := commPar.Name.Name
+
+					if _, err := strconv.Atoi(var_name); err != nil {
+						var_name = "var_" + var_name
+					}
+					ident = &promela_ast.Ident{Name: var_name}
 				}
+
+				rhs := ""
 				if commPar.Mandatory {
-					m.Defines = append(m.Defines, promela_ast.DefineStmt{Name: ident, Rhs: &promela_ast.Ident{Name: DEFAULT_BOUND}})
+					rhs = DEFAULT_BOUND + " // mand "
 				} else {
-					m.Defines = append(m.Defines, promela_ast.DefineStmt{Name: ident, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}})
+					rhs = OPTIONAL_BOUND + " // opt "
 				}
+
+				var buff *bytes.Buffer = bytes.NewBuffer([]byte{})
+				printer.Fprint(buff, m.Fileset, commPar.Expr)
+				rhs += string(buff.Bytes()) + " line " + strconv.Itoa(m.Fileset.Position(commPar.Expr.Pos()).Line)
+
+				m.Defines = append(m.Defines, promela_ast.DefineStmt{Name: ident, Rhs: &promela_ast.Ident{Name: rhs}})
 				prom_call.Args = append(prom_call.Args, ident)
 			}
 
@@ -175,11 +199,12 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 		}
 
 		proc.Body.List = append(proc.Body.List, stmt.List...)
-		proc.Body.List = append(proc.Body.List, &promela_ast.LabelStmt{Name: "stop_process"})
 		for i, j := 0, len(defers.List)-1; i < j; i, j = i+1, j-1 {
 			defers.List[i], defers.List[j] = defers.List[j], defers.List[i]
 		}
 		proc.Body.List = append(proc.Body.List, defers.List...)
+
+		proc.Body.List = append(proc.Body.List, &promela_ast.LabelStmt{Name: "stop_process"})
 
 	}
 	prom_call.Fun = &promela_ast.Ident{Name: func_name, Ident: m.Fileset.Position(call_expr.Pos())}
@@ -204,6 +229,14 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 	if !isGo {
 
 		b.List = append(b.List, &promela_ast.RcvStmt{Chan: &promela_ast.Ident{Name: child_func_name}, Rhs: &promela_ast.Ident{Name: "0"}})
+	} else {
+		// Add the receiver call
+		b.List = append(b.List, &promela_ast.RunStmt{
+			X: &promela_ast.CallExpr{
+				Fun: &promela_ast.Ident{
+					Name: "receiver"},
+				Args: []promela_ast.Expr{&promela_ast.Ident{Name: child_func_name}}}})
+		m.ContainsReceiver = true
 	}
 
 	if isMain {
@@ -211,6 +244,7 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 		m.WaitGroups = new_mod.WaitGroups
 		m.Mutexes = new_mod.Mutexes
 	}
+
 	return b, nil
 }
 
@@ -234,16 +268,14 @@ func (m *Model) translateParams(new_mod *Model, decl *ast.FuncDecl, call_expr *a
 				hasChan = true
 
 				if m.containsChan(call_expr.Args[counter]) {
-					params = append(params, &promela_ast.Param{Name: name.Name, Types: promela_types.Chandef})
-					new_mod.Chans[name] = &ChanStruct{Name: &promela_ast.Ident{Name: name.Name}, Chan: m.Fileset.Position(name.Pos())}
+					chan_name := name.Name + CHAN_NAME
+					params = append(params, &promela_ast.Param{Name: chan_name, Types: promela_types.Chandef})
+					new_mod.Chans[name] = &ChanStruct{Name: &promela_ast.Ident{Name: chan_name}, Chan: m.Fileset.Position(name.Pos())}
 
-					arg, err1 := m.TranslateArg(call_expr.Args[counter])
-					if err1 != nil {
+					fmt.Println(new_mod.Chans)
+					ch := m.getChanStruct(call_expr.Args[counter])
 
-						return params, args, false, false, err1
-					}
-
-					args = append(args, arg)
+					args = append(args, ch.Name)
 				} else {
 					known = false
 				}
@@ -664,7 +696,7 @@ func replaceExpr(from ast.Expr, old ast.Expr, n *ast.Ident) ast.Expr {
 
 // Ie: if s == c and exprs == [c.ch] -> c.ch cause s contains one expr in exprs
 func addIdenticalSelectorExprs(exprs []ast.Expr, s ast.Expr) []ast.Expr {
-	to_return := []ast.Expr{}
+	to_return := Names{}
 
 	sub_expr := s
 
@@ -672,6 +704,8 @@ func addIdenticalSelectorExprs(exprs []ast.Expr, s ast.Expr) []ast.Expr {
 	// case *ast.SelectorExpr:
 	// 	sub_expr = call.X
 	// }
+
+	// Reorder them in alphabetical order ?
 
 	for _, name := range exprs {
 		if IdenticalExpr(name, s) {
@@ -691,6 +725,7 @@ func addIdenticalSelectorExprs(exprs []ast.Expr, s ast.Expr) []ast.Expr {
 		}
 
 	}
+	sort.Sort(to_return)
 
 	return to_return
 }

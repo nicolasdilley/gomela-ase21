@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_types"
+	"github.com/nicolasdilley/gomela/promela/promela_types"
 )
 
 type Chandef struct {

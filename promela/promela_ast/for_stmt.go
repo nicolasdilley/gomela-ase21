@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/utils"
+	"github.com/nicolasdilley/gomela/promela/utils"
 )
 
 // a for statement is a like a for loop in Go

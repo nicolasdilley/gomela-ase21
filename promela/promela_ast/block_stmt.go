@@ -3,7 +3,7 @@ package promela_ast
 import (
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/utils"
+	"github.com/nicolasdilley/gomela/promela/utils"
 )
 
 // a do statement is a repetition construct that is used to repete certain action that might or might not be executable.
@@ -23,7 +23,12 @@ func (b *BlockStmt) Print(num_tabs int) (stmt string) {
 		stmt += utils.GetTabs(num_tabs)
 		stmt += s.Print(num_tabs)
 		if i < len(b.List)-1 {
-			stmt += ";\n"
+			switch s.(type) {
+			case *CommParamDeclStmt:
+				stmt += "\n"
+			default:
+				stmt += ";\n"
+			}
 		}
 
 	}

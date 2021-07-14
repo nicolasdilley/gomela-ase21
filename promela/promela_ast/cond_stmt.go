@@ -3,7 +3,7 @@ package promela_ast
 import (
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/utils"
+	"github.com/nicolasdilley/gomela/promela/utils"
 )
 
 // a cond statement is the real representation of an if statement in promela

@@ -1,32 +1,19 @@
 package main
 
-import "sync"
+import "fmt"
 
 func main() {
-	var mu *sync.Mutex
+	ch := make(chan string) // creates a channel
 
-	ch := make(chan int)
-	mu.Lock()
+	go print(ch, "hello") // spawns a goroutine that will send 'hello' on ch
 
-	defer func() {
-		mu.Unlock()
-	}()
+	fmt.Println(<-ch) // prints what is received from ch
 
-	if true {
-		return
-	}
-	ch <- 5
-	go func() {
-		mu.Lock()
+	go print(ch, "world ") // spawns a goroutine that will send 'world' on ch
 
-		mu.Unlock()
-	}()
+	fmt.Println(<-ch) // prints what is received from ch
+}
 
-	<-ch
-	defer func() {
-		mu.Unlock()
-	}()
-
-	return
-
+func print(ch chan string, toSend string) {
+	ch <- toSend // send the value of toSend on ch
 }

@@ -8,8 +8,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/nicolasdilley/ToolX/promela"
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -24,44 +24,100 @@ func ParseAst(fileSet *token.FileSet, proj_name string, commit string, ast_map m
 	for pack_name, node := range ast_map {
 		// Analyse each file
 
-		for _, file := range node.Syntax {
-			for _, decl := range file.Decls {
-				switch decl := decl.(type) {
-				case *ast.FuncDecl:
-					if !takeChanAsParam(decl, ast_map[pack_name]) {
-						// fmt.Println("Parsing ", decl.Name)
-						var m promela.Model = promela.Model{
-							Result_fodler:    result_folder,
-							Project_name:     proj_name,
-							Package:          pack_name,
-							Name:             pack_name + PACKAGE_MODEL_SEP + decl.Name.Name + fmt.Sprint(fileSet.Position(decl.Pos()).Line),
-							AstMap:           ast_map,
-							Fileset:          fileSet,
-							FuncDecls:        []*ast.FuncDecl{},
-							Proctypes:        []*promela_ast.Proctype{},
-							RecFuncs:         []promela.RecFunc{},
-							SpawningFuncs:    []*promela.SpawningFunc{},
-							ClosedVars:       make(map[*promela.ChanStruct][]ast.Expr),
-							Fun:              decl,
-							Chans:            make(map[ast.Expr]*promela.ChanStruct),
-							WaitGroups:       make(map[ast.Expr]*promela.WaitGroupStruct),
-							Mutexes:          []ast.Expr{},
-							Commit:           commit,
-							Global_vars:      []promela_ast.Stmt{},
-							For_counter:      &promela.ForCounter{},
-							Default_ub:       *ver.ub,
-							Default_lb:       *ver.lb,
-							Projects_folder:  projects_folder,
-							GenerateFeatures: true,
+		// make sure the package doesnt contain any global concurrency primitives
+
+		if !containsConcurrencyPrimitiveAsAGlobalVariable(node) {
+			for _, file := range node.Syntax {
+				for _, decl := range file.Decls {
+					switch decl := decl.(type) {
+					case *ast.FuncDecl:
+						if !takeChanAsParam(decl, ast_map[pack_name]) {
+							fmt.Println("Parsing ", decl.Name.Name)
+							// fmt.Println("Parsing ", decl.Name)
+							var m promela.Model = promela.Model{
+								Result_fodler:        result_folder,
+								Project_name:         proj_name,
+								Package:              pack_name,
+								Name:                 pack_name + PACKAGE_MODEL_SEP + decl.Name.Name + fmt.Sprint(fileSet.Position(decl.Pos()).Line),
+								AstMap:               ast_map,
+								Fileset:              fileSet,
+								FuncDecls:            []*ast.FuncDecl{},
+								Proctypes:            []*promela_ast.Proctype{},
+								RecFuncs:             []promela.RecFunc{},
+								SpawningFuncs:        []*promela.SpawningFunc{},
+								ClosedVars:           make(map[*promela.ChanStruct][]ast.Expr),
+								Fun:                  decl,
+								Chans:                make(map[ast.Expr]*promela.ChanStruct),
+								WaitGroups:           make(map[ast.Expr]*promela.WaitGroupStruct),
+								Mutexes:              []ast.Expr{},
+								Commit:               commit,
+								Global_vars:          []promela_ast.Stmt{},
+								For_counter:          &promela.ForCounter{},
+								Projects_folder:      projects_folder,
+								GenerateFeatures:     true,
+								Current_return_label: "stop_process",
+							}
+
+							m.GoToPromela(AUTHOR_PROJECT_SEP)
+
 						}
-
-						m.GoToPromela(AUTHOR_PROJECT_SEP)
-
 					}
 				}
 			}
+		} else {
+			ver.num_concurrency_primitive_as_global++
 		}
 	}
+}
+
+func containsConcurrencyPrimitiveAsAGlobalVariable(pack *packages.Package) bool {
+	// for _, file := range pack.Syntax {
+	// 	for _, decl := range file.Decls {
+	// 		switch decl := decl.(type) {
+	// 		case *ast.FuncDecl:
+
+	// 		case *ast.GenDecl:
+
+	// 			for _, spec := range decl.Specs {
+	// 				switch spec := spec.(type) {
+	// 				case *ast.ValueSpec:
+	// 					var expr ast.Expr = spec.Type
+	// 					switch arg := expr.(type) {
+	// 					case *ast.UnaryExpr:
+	// 						expr = arg.X
+	// 					case *ast.StarExpr:
+	// 						expr = arg.X
+	// 					}
+	// 					switch expr := expr.(type) {
+	// 					case *ast.ChanType:
+	// 						return true
+	// 					case *ast.SelectorExpr:
+	// 						switch x := expr.X.(type) {
+	// 						case *ast.Ident:
+
+	// 							if x.Name == "sync" {
+	// 								if expr.Sel.Name == "WaitGroup" {
+	// 									return true
+	// 								} else if expr.Sel.Name == "Mutex" {
+	// 									return true
+	// 								}
+	// 							}
+	// 						}
+	// 					}
+	// 					t := pack.TypesInfo.TypeOf(expr)
+	// 					if t == nil {
+	// 						return true
+	// 					}
+	// 					if structContainsChan(t, []*types.Named{}) {
+	// 						return true
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	return false
 }
 
 // Generate the GO ast for each packages in packages_names
@@ -117,11 +173,13 @@ func takeChanAsParam(decl *ast.FuncDecl, pack *packages.Package) bool {
 
 		t := pack.TypesInfo.TypeOf(ident)
 
-		switch t := t.(type) {
-		case *types.Named:
-			if t.String() != "testing.T" {
-				if structContainsChan(t, []*types.Named{t}) {
-					return true
+		if t != nil {
+			switch t := t.(type) {
+			case *types.Named:
+				if t.String() != "testing.T" {
+					if structContainsChan(t, []*types.Named{t}) {
+						return true
+					}
 				}
 			}
 		}
@@ -135,6 +193,8 @@ func takeChanAsParam(decl *ast.FuncDecl, pack *packages.Package) bool {
 			switch t := field.Type.(type) {
 			case *ast.StarExpr:
 				ident = t.X
+			default:
+				ident = t
 			}
 			switch ident := ident.(type) {
 			case *ast.Ident:
@@ -146,10 +206,11 @@ func takeChanAsParam(decl *ast.FuncDecl, pack *packages.Package) bool {
 
 					}
 				} else {
-					log.Printf(pack.Name, ",", decl.Name.Name, ",", "MODEL ERROR = The type of the receiver of func ", decl.Name.Name, " could not be found ")
+					log.Print(pack.Name, ":", decl.Name.Name, ":", "MODEL ERROR = The type of the receiver of func ", decl.Name.Name, " could not be found ")
 				}
 			default:
-				log.Printf(pack.Name, ",", decl.Name.Name, ",", "MODEL ERROR = The receiver of func ", decl.Name.Name, " was not an ident")
+
+				log.Print(pack.Name, ":", decl.Name.Name, ",", "MODEL ERROR = The receiver of func ", decl.Name.Name, " was not an ident ", ident)
 
 			}
 		}
@@ -159,7 +220,6 @@ func takeChanAsParam(decl *ast.FuncDecl, pack *packages.Package) bool {
 }
 
 func structContainsChan(t types.Type, seen []*types.Named) bool {
-
 	t = promela.GetElemIfPointer(t)
 	if t.String() == "sync.WaitGroup" {
 		return true
@@ -168,6 +228,7 @@ func structContainsChan(t types.Type, seen []*types.Named) bool {
 	}
 	switch t := t.Underlying().(type) {
 	case *types.Struct:
+
 		for i := 0; i < t.NumFields(); i++ {
 
 			field_type := promela.GetElemIfPointer(t.Field(i).Type())

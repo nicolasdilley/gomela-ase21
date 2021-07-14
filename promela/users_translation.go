@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func TranslateIdent(expr ast.Expr, fileSet *token.FileSet) (expr1 promela_ast.Ident) {

@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"strconv"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 )
@@ -92,6 +93,7 @@ func (m *Model) AnalyseCommParam(pack string, fun *ast.FuncDecl, ast_map map[str
 						if len(stmt.Args) > 1 {
 							_, err1 := m.TranslateArg(stmt.Args[1])
 							if err1 == nil {
+
 								params = m.Upgrade(fun, params, m.Vid(fun, stmt.Args[1], true, log), log) // m.Upgrade the parameters with the variables contained in the bound of the for loop.
 							}
 						}
@@ -357,7 +359,7 @@ func (m *Model) Vid(fun *ast.FuncDecl, expr ast.Expr, mandatory bool, log bool) 
 			}
 		}
 		name := &ast.Ident{Name: TranslateIdent(expr, m.Fileset).Name}
-		params = m.Upgrade(fun, params, []*CommPar{&CommPar{Name: name, Mandatory: mandatory, Expr: name}}, log)
+		params = m.Upgrade(fun, params, []*CommPar{&CommPar{Name: name, Mandatory: mandatory, Expr: expr}}, log)
 	case *ast.BinaryExpr:
 		params = m.Upgrade(fun, params, m.Vid(fun, expr.X, mandatory, log), log)
 		params = m.Upgrade(fun, params, m.Vid(fun, expr.Y, mandatory, log), log)
@@ -389,7 +391,7 @@ func (m *Model) getIdent(expr ast.Expr) *ast.Ident {
 	case *ast.IndexExpr:
 		return &ast.Ident{Name: m.getIdent(expr.X).Name + "L" + m.getIdent(expr.Index).Name + "L"}
 	case *ast.BasicLit:
-		return &ast.Ident{Name: expr.Value}
+		return &ast.Ident{Name: strings.Replace(expr.Value, "\"", "_", -1)}
 	case *ast.ParenExpr:
 		return &ast.Ident{Name: m.getIdent(expr.X).Name, NamePos: expr.Pos()}
 	case *ast.SliceExpr:
@@ -425,11 +427,11 @@ func (m *Model) getIdent(expr ast.Expr) *ast.Ident {
 	case *ast.KeyValueExpr:
 		return &ast.Ident{Name: m.getIdent(expr.Key).Name, NamePos: expr.Pos()}
 	case *ast.CompositeLit:
-		name := "{"
+		name := "_"
 		for _, elt := range expr.Elts {
 			name += m.getIdent(elt).Name
 		}
-		name += "}"
+		name += ""
 		return &ast.Ident{Name: name, NamePos: expr.Pos()}
 	case *ast.TypeAssertExpr:
 		return &ast.Ident{Name: m.getIdent(expr.X).Name, NamePos: expr.Pos()}

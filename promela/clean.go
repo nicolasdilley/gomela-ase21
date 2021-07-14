@@ -3,7 +3,7 @@ package promela
 import (
 	"go/ast"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func Clean(m *Model) {
@@ -120,6 +120,14 @@ func used(commPar *CommPar, b *promela_ast.BlockStmt) bool {
 				}
 			}
 		case *promela_ast.DeclStmt:
+			switch s := s.Rhs.(type) {
+			case *promela_ast.Ident:
+				if s.Name == commPar.Name.Name {
+					is_used = true
+				}
+			}
+			return false
+		case *promela_ast.CommParamDeclStmt:
 			switch s := s.Rhs.(type) {
 			case *promela_ast.Ident:
 				if s.Name == commPar.Name.Name {

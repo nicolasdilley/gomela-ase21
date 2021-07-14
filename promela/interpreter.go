@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
-	"github.com/nicolasdilley/ToolX/promela/promela_types"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_types"
 )
 
 type ForCounter struct { // used to create the labels to jump to for for select statement
@@ -21,15 +21,12 @@ func Print(m *Model) {
 
 	stmt := ""
 
-	// print the bounds
-	for _, c := range m.Defines {
-		stmt += c.Print(0) + "\n"
-	}
+	// print meta-data
 
-	// print the function inline
-	for _, c := range m.Inlines {
-		stmt += c.Print(0) + "\n"
-	}
+	num_mand_param_in_model, num_opt_param_in_model := numCommParInModel(m)
+	stmt += "// num_comm_params=" + strconv.Itoa(num_mand_param_in_model+num_opt_param_in_model) + "\n"
+	stmt += "// num_mand_comm_params=" + strconv.Itoa(num_mand_param_in_model) + "\n"
+	stmt += "// num_opt_comm_params=" + strconv.Itoa(num_opt_param_in_model) + "\n"
 
 	stmt += "\n"
 
@@ -55,7 +52,16 @@ func Print(m *Model) {
 		}
 	}
 	proj_name := strings.Replace(splitted[0], AUTHOR_PROJECT_SEP, "/", -1)
-	stmt += "// https://github.com/" + proj_name + "/blob/" + m.Commit + "/" + file_path + "#L" + strconv.Itoa(m.Fileset.Position(m.Fun.Pos()).Line) + "\n"
+	stmt += "// git_link=https://github.com/" + proj_name + "/blob/" + m.Commit + "/" + file_path + "#L" + strconv.Itoa(m.Fileset.Position(m.Fun.Pos()).Line) + "\n"
+
+	// print the bounds
+	for _, c := range m.Defines {
+		stmt += c.Print(0) + "\n"
+	}
+	// print the function inline
+	for _, c := range m.Inlines {
+		stmt += c.Print(0) + "\n"
+	}
 
 	// add chans to the chandef
 	chan_struct := promela_ast.ChanStructDef{Name: &promela_ast.Ident{Name: "Chandef"}, Defs: []*promela_ast.Chandef{}} // creating the struct that will represent the go channel
@@ -127,6 +133,10 @@ func Print(m *Model) {
 		stmt += GenerateMutexMonitor()
 	}
 
+	if m.ContainsReceiver {
+		stmt += GenerateReceiverProcess()
+	}
+
 	folder := "./" + m.Result_fodler + "/" + strings.Replace(m.Project_name, "/", "-", -1)
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
 		os.Mkdir(folder, os.ModePerm)
@@ -141,4 +151,62 @@ func Print(m *Model) {
 		panic(err)
 	}
 
+}
+
+func numCommParInModel(m *Model) (int, int) {
+	num_mand_param := 0
+	num_opt_param := 0
+	// findParam := func(s promela_ast.Stmt) bool {
+	// 	num_mand_param := 0
+	// 	num_opt_param := 0
+
+	// 	switch s := s.(type) {
+	// 	case *promela_ast.CommParamDeclStmt:
+	// 		if s.Mandatory {
+	// 			num_mand_param++
+	// 		} else {
+	// 			num_opt_param++
+	// 		}
+
+	// 	case *promela_ast.DeclStmt:
+	// 		switch rhs := s.Rhs.(type) {
+	// 		case *promela_ast.Ident:
+	// 			if strings.Contains(rhs.Name, "opt") {
+	// 				num_opt_param++
+	// 			} else if strings.Contains(rhs.Name, "mand") {
+	// 				num_mand_param++
+	// 			}
+	// 		}
+
+	// 	}
+	// 	return true
+	// }
+
+	for _, def := range m.Defines {
+		switch rhs := def.Rhs.(type) {
+		case *promela_ast.Ident:
+			if strings.Contains(rhs.Name, "opt") {
+				num_opt_param++
+			} else if strings.Contains(rhs.Name, "mand") {
+				num_mand_param++
+			}
+		}
+	}
+	// promela_ast.Inspect(m.Init.Body, findParam)
+	// for _, proc := range m.Proctypes {
+	// 	promela_ast.Inspect(proc.Body, findParam)
+	// }
+
+	// for _, define := range m.Defines {
+	// 	switch rhs := define.Rhs.(type) {
+	// 	case *promela_ast.Ident:
+	// 		if strings.Contains(rhs.Name, "opt") {
+	// 			num_opt_param++
+	// 		} else if strings.Contains(rhs.Name, "mand") {
+	// 			num_mand_param++
+	// 		}
+	// 	}
+	// }
+
+	return num_mand_param, num_opt_param
 }

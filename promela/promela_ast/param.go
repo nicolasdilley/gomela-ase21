@@ -3,7 +3,7 @@ package promela_ast
 import (
 	"go/token"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_types"
+	"github.com/nicolasdilley/gomela/promela/promela_types"
 )
 
 type Param struct {

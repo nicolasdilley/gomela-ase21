@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"strings"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 var (

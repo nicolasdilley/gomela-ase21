@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/token"
+	"strconv"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 // Return if the expr given could be translated to a var or not and if it can its promela expr.
@@ -42,10 +44,18 @@ func (m *Model) TranslateArg(expr ast.Expr) (e promela_ast.Expr, err *ParseError
 
 			e1 = &promela_ast.BinaryExpr{Lhs: lhs, Op: expr.Op.String(), Rhs: rhs}
 		}
+	case *ast.CompositeLit:
+		name := promela_ast.Ident{Name: strconv.Itoa(len(expr.Elts)), Ident: m.Fileset.Position(expr.Pos())}
+		e1 = &name
 
 	case *ast.UnaryExpr:
-		unary, err1 := m.TranslateArg(expr.X)
 
+		unary, err1 := m.TranslateArg(expr.X)
+		switch expr.Op {
+		case token.SUB:
+		case token.ADD:
+
+		}
 		if err1 != nil {
 			err = err1
 		} else {
@@ -72,6 +82,7 @@ func (m *Model) TranslateArg(expr ast.Expr) (e promela_ast.Expr, err *ParseError
 			return arg, &ParseError{err: errors.New(UNPARSABLE_FUNCTION_NAME + m.Fileset.Position(expr.Pos()).String())}
 		}
 	case *ast.BasicLit:
+		fmt.Println("icii ! ", expr)
 		name := promela_ast.Ident{Name: expr.Value}
 		e1 = &name
 

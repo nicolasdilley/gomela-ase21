@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"go/types"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateRcvStmt(
@@ -101,6 +101,13 @@ func (m *Model) IsTimeAfter(e ast.Expr) bool {
 			if sel.Sel.Name == "Done" {
 				// look if the type is context.Context
 				isContext := false
+				switch ident := sel.X.(type) {
+				case *ast.Ident:
+					if ident.Name == "ctx" {
+						isContext = true
+					}
+				}
+
 				t := m.AstMap[m.Package].TypesInfo.TypeOf(sel.X)
 
 				if t != nil {
@@ -114,12 +121,8 @@ func (m *Model) IsTimeAfter(e ast.Expr) bool {
 							isContext = true
 						}
 					}
-					if sel.Sel.Name == "ctx" || isContext {
-						return true
-					}
-				} else {
-					return sel.Sel.Name == "ctx"
 				}
+				return isContext
 			}
 
 		}

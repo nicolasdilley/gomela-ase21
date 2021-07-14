@@ -1,35 +1,38 @@
 package promela
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"strconv"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
-	"github.com/nicolasdilley/ToolX/promela/promela_types"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_types"
 	"golang.org/x/tools/go/packages"
 )
 
 var (
-	CHAN_NAME          = "_ch"
-	DEFAULT_BOUND      = "??"
-	OPTIONAL_BOUND     = "-2"
-	CHAN_BOUND         = 0
-	ADD_BOUND          = 1
-	LOWER_FOR_BOUND    = 2
-	UPPER_FOR_BOUND    = 3
-	RANGE_BOUND        = 4
-	AUTHOR_PROJECT_SEP = "--"
+	CHAN_NAME             = "_ch"
+	DEFAULT_BOUND         = "??"
+	OPTIONAL_BOUND        = "-2"
+	CHAN_BOUND            = 0
+	ADD_BOUND             = 1
+	LOWER_FOR_BOUND       = 2
+	UPPER_FOR_BOUND       = 3
+	RANGE_BOUND           = 4
+	AUTHOR_PROJECT_SEP    = "--"
+	MAX_STRUCTS_INTER_PRO = 2
 
 	Features = []Feature{}
 )
 
 type Model struct {
 	Result_fodler        string // the name of the folder where the model need to ne printed
-	Project_name         string // the full name of  project (eg. "nicolasdilley/ToolX")
+	Project_name         string // the full name of  project (eg. "nicolasdilley/Gomela")
 	Package              string // the name of the package
 	Name                 string // the name of the file that will be generated. (Composed of "pack_functionName")
 	Commit               string // the commit of the project
@@ -46,18 +49,17 @@ type Model struct {
 	ContainsWg           bool
 	ContainsChan         bool
 	ContainsMutexes      bool
-	Init                 *promela_ast.InitDef       // The proctype consisting of the "main" function of the source program
-	Global_vars          []promela_ast.Stmt         // the global variable used in the ltl properties
-	Defines              []promela_ast.DefineStmt   // the channel bounds
-	CommPars             []*CommPar                 // the communications paramer
-	Features             []Feature                  // The features for the survey
-	ClosedVars           map[*ChanStruct][]ast.Expr // The variable that are used to test if a channel is closed when receiving (i.e ok in r,ok := >-ch )
-	process_counter      int                        // to give unique name to Promela processes
-	func_counter         int                        // to give unique name to inline func call
-	For_counter          *ForCounter                // Used to translate the for loop to break out properly out of them
-	Counter              int                        // used to differentiate call expr channels
-	Default_lb           int
-	Default_ub           int
+	ContainsReceiver     bool
+	Init                 *promela_ast.InitDef         // The proctype consisting of the "main" function of the source program
+	Global_vars          []promela_ast.Stmt           // the global variable used in the ltl properties
+	Defines              []promela_ast.DefineStmt     // the channel bounds
+	CommPars             []*CommPar                   // the communications paramer
+	Features             []Feature                    // The features for the survey
+	ClosedVars           map[*ChanStruct][]ast.Expr   // The variable that are used to test if a channel is closed when receiving (i.e ok in r,ok := >-ch )
+	process_counter      int                          // to give unique name to Promela processes
+	func_counter         int                          // to give unique name to inline func call
+	For_counter          *ForCounter                  // Used to translate the for loop to break out properly out of them
+	Counter              int                          // used to differentiate call expr channels
 	AstMap               map[string]*packages.Package // the map used to find the type of the channels
 	Chan_closing         bool
 	Projects_folder      string
@@ -123,13 +125,13 @@ func (m *Model) GoToPromela(SEP string) {
 			PrintFeatures(m.Features, m)
 		} else {
 			fmt.Println("Could not parse model ", m.Name, " :")
-			fmt.Println(err.err.Error())
+			fmt.Println(err.err)
 
 			logFeature(Feature{
 				Proj_name: m.Project_name,
 				Model:     m.Name,
 				Fun:       m.Fun.Name.String(),
-				Name:      "MODEL ERROR = " + fmt.Sprintf(err.err.Error()),
+				Name:      "MODEL ERROR = " + fmt.Sprint(err.err),
 				Mandatory: "false",
 				Line:      0,
 				Commit:    m.Commit,
@@ -142,14 +144,6 @@ func (m *Model) GoToPromela(SEP string) {
 func (m *Model) translateNewVar(s ast.Stmt, lhs []ast.Expr, rhs []ast.Expr) (b *promela_ast.BlockStmt, err *ParseError) {
 	b = &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}
 
-	for i, rh := range rhs {
-		b1, err1 := m.lookForChans(lhs[i], rh)
-		if err1 != nil {
-			return b, err1
-		}
-
-		addBlock(b, b1)
-	}
 	new_var := false
 
 	// check if the assign or declaration is a declaration of a new var
@@ -162,24 +156,29 @@ func (m *Model) translateNewVar(s ast.Stmt, lhs []ast.Expr, rhs []ast.Expr) (b *
 		new_var = true
 	}
 
-	if new_var {
+	for i, rh := range rhs {
+		b1, err1 := m.lookForChans(lhs[i], rh, new_var)
+		if err1 != nil {
+			return b, err1
+		}
 
-		// check if the new var is a struct
-		for _, lh := range lhs {
-			t := m.AstMap[m.Package].TypesInfo.TypeOf(lh)
+		addBlock(b, b1)
+	}
+	// check if the new var is a struct
+	for _, lh := range lhs {
+		t := m.AstMap[m.Package].TypesInfo.TypeOf(lh)
 
-			if t != nil {
-				t = GetElemIfPointer(t)
-				switch t := t.(type) {
+		if t != nil {
+			t = GetElemIfPointer(t)
+			switch t := t.(type) {
 
-				case *types.Named:
-					b1, err1 := m.translateStruct(s, lh, t, []*types.Named{t})
-					if err1 != nil {
-						return b, err1
-					}
-
-					addBlock(b, b1)
+			case *types.Named:
+				b1, err1 := m.translateStruct(s, lh, t, []*types.Named{t}, 0, new_var)
+				if err1 != nil {
+					return b, err1
 				}
+
+				addBlock(b, b1)
 			}
 		}
 	}
@@ -196,91 +195,119 @@ func GetElemIfPointer(t types.Type) types.Type {
 	}
 }
 
-func (m *Model) translateStruct(s ast.Stmt, lhs ast.Expr, t types.Type, seen []*types.Named) (b *promela_ast.BlockStmt, err *ParseError) {
+func (m *Model) translateStruct(s ast.Stmt, lhs ast.Expr, t types.Type, seen []*types.Named, inter_pro int, new_var bool) (b *promela_ast.BlockStmt, err *ParseError) {
 	b = &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}
 	// Tests if one of the field of the assign structs is a WG
 	// We have the definition of a struct
 
-	if t.String() == "sync.WaitGroup" {
-		return m.translateWg(s, lhs)
+	if inter_pro <= MAX_STRUCTS_INTER_PRO {
+		if t.String() == "sync.WaitGroup" {
+			if !new_var {
+				return b, &ParseError{err: errors.New(WG_ALIASING + m.Fileset.Position(lhs.Pos()).String())}
+			}
+			return m.translateWg(s, lhs)
 
-	} else if t.String() == "sync.Mutex" || t.String() == "sync.RWMutex" {
-		return m.translateMutex(s, lhs)
-	}
+		} else if t.String() == "sync.Mutex" || t.String() == "sync.RWMutex" {
+			if !new_var {
+				return b, &ParseError{err: errors.New(MUTEX_ALIASING + m.Fileset.Position(lhs.Pos()).String())}
+			}
+			return m.translateMutex(s, lhs)
+		}
 
-	switch t := t.Underlying().(type) {
+		switch t := t.Underlying().(type) {
 
-	case *types.Struct:
-		for i := 0; i < t.NumFields(); i++ {
+		case *types.Struct:
+			for i := 0; i < t.NumFields(); i++ {
 
-			field_type := t.Field(i).Type()
+				field_type := t.Field(i).Type()
 
-			field_type = GetElemIfPointer(field_type)
+				field_type = GetElemIfPointer(field_type)
 
-			switch field := field_type.(type) {
-			case *types.Array:
-				elem := GetElemIfPointer(field.Elem())
-				switch elem := elem.(type) {
-				case *types.Chan:
-					return b, &ParseError{err: errors.New(CHAN_IN_LIST + m.Fileset.Position(s.Pos()).String())}
-				default:
-					if elem.String() == "sync.WaitGroup" {
-						return b, &ParseError{err: errors.New(WG_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+				switch field := field_type.(type) {
+				case *types.Array:
+					elem := GetElemIfPointer(field.Elem())
+					switch elem := elem.(type) {
+					case *types.Chan:
+						return b, &ParseError{err: errors.New(CHAN_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+					default:
+						if elem.String() == "sync.WaitGroup" {
+							return b, &ParseError{err: errors.New(WG_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+						}
+						if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
+							return b, &ParseError{err: errors.New(MUTEX_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+						}
 					}
-					if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
-						return b, &ParseError{err: errors.New(MUTEX_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+				case *types.Slice:
+					elem := GetElemIfPointer(field.Elem())
+					switch elem := elem.(type) {
+					case *types.Chan:
+						return b, &ParseError{err: errors.New(CHAN_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+					default:
+						if elem.String() == "sync.WaitGroup" {
+							return b, &ParseError{err: errors.New(WG_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+						}
+						if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
+							return b, &ParseError{err: errors.New(MUTEX_IN_LIST + m.Fileset.Position(s.Pos()).String())}
+						}
+					}
+				case *types.Map:
+					elem := GetElemIfPointer(field.Elem())
+					switch elem := elem.(type) {
+					case *types.Chan:
+						return b, &ParseError{err: errors.New(CHAN_IN_MAP + m.Fileset.Position(s.Pos()).String())}
+					default:
+						if elem.String() == "sync.WaitGroup" {
+							return b, &ParseError{err: errors.New(WG_IN_MAP + m.Fileset.Position(s.Pos()).String())}
+						}
+						if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
+							return b, &ParseError{err: errors.New(MUTEX_IN_MAP + m.Fileset.Position(s.Pos()).String())}
+						}
+					}
+
+				case *types.Struct:
+
+					b1, err1 := m.translateStruct(
+						s,
+						&ast.SelectorExpr{
+							X: lhs,
+							Sel: &ast.Ident{
+								Name: t.Field(i).Name()}},
+						field, seen, inter_pro+1, new_var)
+
+					if err1 != nil {
+						return b, err1
+					}
+					addBlock(b, b1)
+
+				case *types.Named:
+
+					if !t.Field(i).Embedded() {
+						b1, err1 := m.translateNamed(s, &ast.SelectorExpr{
+							X: lhs,
+							Sel: &ast.Ident{
+								Name: t.Field(i).Name()}},
+							field,
+							seen, inter_pro, new_var)
+						if err1 != nil {
+							return b, err1
+						}
+
+						addBlock(b, b1)
 					}
 				}
-			case *types.Slice:
-				elem := GetElemIfPointer(field.Elem())
-				switch elem := elem.(type) {
-				case *types.Chan:
-					return b, &ParseError{err: errors.New(CHAN_IN_LIST + m.Fileset.Position(s.Pos()).String())}
-				default:
-					if elem.String() == "sync.WaitGroup" {
-						return b, &ParseError{err: errors.New(WG_IN_LIST + m.Fileset.Position(s.Pos()).String())}
-					}
-					if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
-						return b, &ParseError{err: errors.New(MUTEX_IN_LIST + m.Fileset.Position(s.Pos()).String())}
-					}
-				}
-			case *types.Map:
-				elem := GetElemIfPointer(field.Elem())
-				switch elem := elem.(type) {
-				case *types.Chan:
-					return b, &ParseError{err: errors.New(CHAN_IN_MAP + m.Fileset.Position(s.Pos()).String())}
-				default:
-					if elem.String() == "sync.WaitGroup" {
-						return b, &ParseError{err: errors.New(WG_IN_MAP + m.Fileset.Position(s.Pos()).String())}
-					}
-					if elem.String() == "sync.Mutex" || elem.String() == "sync.RWMutex" {
-						return b, &ParseError{err: errors.New(MUTEX_IN_MAP + m.Fileset.Position(s.Pos()).String())}
-					}
-				}
 
-			case *types.Struct:
+			}
+		}
 
-				b1, err1 := m.translateStruct(
-					s,
-					&ast.SelectorExpr{
-						X: lhs,
-						Sel: &ast.Ident{
-							Name: t.Field(i).Name()}},
-					field, seen)
-
-				if err1 != nil {
-					return b, err1
-				}
-				addBlock(b, b1)
-			case *types.Named:
-
-				if !t.Field(i).Embedded() {
-					b1, err1 := m.translateNamed(s, &ast.SelectorExpr{
-						X: lhs,
-						Sel: &ast.Ident{
-							Name: t.Field(i).Name()}},
-						field,
-						seen)
+		// this is to accomodate struct that have a Mutex, Waitgroup embedded
+		switch t := t.(type) {
+		case *types.Struct:
+			for i := 0; i < t.NumFields(); i++ {
+				switch t := t.Field(i).Type().(type) {
+				case *types.Named:
+					b1, err1 := m.translateNamed(s, lhs,
+						t,
+						seen, inter_pro, new_var)
 					if err1 != nil {
 						return b, err1
 					}
@@ -288,35 +315,15 @@ func (m *Model) translateStruct(s ast.Stmt, lhs ast.Expr, t types.Type, seen []*
 					addBlock(b, b1)
 				}
 			}
-
 		}
+
+		// if the structures contains a channel that we don't know
+		// of then generate one with a bounded size and generate comm param.
 	}
-
-	// this is to accomodate struct that have a Mutex, Waitgroup embedded
-	switch t := t.(type) {
-	case *types.Struct:
-		for i := 0; i < t.NumFields(); i++ {
-			switch t := t.Field(i).Type().(type) {
-			case *types.Named:
-				b1, err1 := m.translateNamed(s, lhs,
-					t,
-					seen)
-				if err1 != nil {
-					return b, err1
-				}
-
-				addBlock(b, b1)
-			}
-		}
-	}
-
-	// if the structures contains a channel that we don't know
-	// of then generate one with a bounded size and generate comm param.
-
 	return b, nil
 }
 
-func (m *Model) translateNamed(s ast.Stmt, name ast.Expr, t *types.Named, seen []*types.Named) (*promela_ast.BlockStmt, *ParseError) {
+func (m *Model) translateNamed(s ast.Stmt, name ast.Expr, t *types.Named, seen []*types.Named, inter_pro int, new_var bool) (*promela_ast.BlockStmt, *ParseError) {
 	contains := false
 	b := &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}
 	for _, s := range seen {
@@ -332,16 +339,19 @@ func (m *Model) translateNamed(s ast.Stmt, name ast.Expr, t *types.Named, seen [
 			new_seen = append(seen, t)
 		}
 
-		return m.translateStruct(s,
-			name,
-			t, new_seen)
+		if inter_pro <= MAX_STRUCTS_INTER_PRO {
+			return m.translateStruct(s,
+				name,
+				t, new_seen, inter_pro+1, new_var)
+		}
+
 	}
 
 	return b, nil
 }
 
 // Takes the declaration of a composite list {field: expr, ...} and checks for wg and mutex
-func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr) (b *promela_ast.BlockStmt, err *ParseError) {
+func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr, new_var bool) (b *promela_ast.BlockStmt, err *ParseError) {
 	b = &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}
 	// Tests if one of the field of the assign structs is a WG
 
@@ -352,7 +362,9 @@ func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr) (b *promela_ast.BlockSt
 			if ident.Name == "make" && len(c.Args) > 0 { // possibly a new chan
 				switch c.Args[0].(type) {
 				case *ast.ChanType:
-
+					if !new_var {
+						return b, &ParseError{err: errors.New(CHAN_ALIASING + m.Fileset.Position(lhs.Pos()).String())}
+					}
 					b1, err1 := m.translateChan(lhs, c.Args)
 
 					if err1 != nil {
@@ -364,7 +376,7 @@ func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr) (b *promela_ast.BlockSt
 			}
 		}
 	case *ast.UnaryExpr:
-		return m.lookForChans(lhs, c.X)
+		return m.lookForChans(lhs, c.X, new_var)
 	case *ast.CompositeLit:
 		for _, f := range c.Elts {
 
@@ -380,7 +392,7 @@ func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr) (b *promela_ast.BlockSt
 
 				switch ident := expr.Key.(type) {
 				case *ast.Ident:
-					b1, err1 := m.lookForChans(&ast.SelectorExpr{X: lhs, Sel: ident}, expr.Value)
+					b1, err1 := m.lookForChans(&ast.SelectorExpr{X: lhs, Sel: ident}, expr.Value, new_var)
 
 					if err1 != nil {
 						return b, err1
@@ -395,7 +407,7 @@ func (m *Model) lookForChans(lhs ast.Expr, rhs ast.Expr) (b *promela_ast.BlockSt
 				}
 
 			case *ast.CompositeLit:
-				b1, err1 := m.lookForChans(lhs, expr)
+				b1, err1 := m.lookForChans(lhs, expr, new_var)
 
 				if err1 != nil {
 					return b, err1
@@ -507,6 +519,7 @@ func (m *Model) translateChan(go_chan_name ast.Expr, args []ast.Expr) (b *promel
 	if !m.For_counter.In_for {
 		// a new channel is found lets change its name, rename it in function and add to struct
 		prom_chan_name := translateIdent(go_chan_name)
+		prom_chan_name.Name += CHAN_NAME
 		channel := &ChanStruct{Name: &prom_chan_name, Chan: m.Fileset.Position(go_chan_name.Pos())}
 		chan_def := &promela_ast.DeclStmt{Name: &prom_chan_name, Types: promela_types.Chandef}
 		b.List = append(b.List, chan_def)
@@ -640,11 +653,12 @@ func (m *Model) TranslateExpr(expr ast.Expr) (b *promela_ast.BlockStmt, err *Par
 			if name.Name == "close" && len(expr.Args) == 1 { // closing a chan
 				send := &promela_ast.SendStmt{Send: m.Fileset.Position(name.Pos())}
 
-				ch := TranslateIdent(expr.Args[0], m.Fileset)
-
 				if m.containsChan(expr.Args[0]) {
+
+					chan_name := m.getChanStruct(expr.Args[0])
+
 					send.Chan = &promela_ast.SelectorExpr{
-						X: &ch, Sel: &promela_ast.Ident{Name: "closing"},
+						X: chan_name.Name, Sel: &promela_ast.Ident{Name: "closing"},
 						Pos: m.Fileset.Position(expr.Args[0].Pos()),
 					}
 					send.Rhs = &promela_ast.Ident{Name: "true"}
@@ -676,7 +690,6 @@ func (m *Model) TranslateExpr(expr ast.Expr) (b *promela_ast.BlockStmt, err *Par
 					}
 				}
 			}
-
 			call, err1 := m.TranslateCallExpr(expr)
 			if err1 != nil {
 				err = err1
@@ -700,6 +713,12 @@ func (m *Model) TranslateExpr(expr ast.Expr) (b *promela_ast.BlockStmt, err *Par
 
 			stmts.List = append(stmts.List, d1.List...)
 			return stmts, err1
+		default:
+			call, err1 := m.TranslateCallExpr(expr)
+			if err1 != nil {
+				err = err1
+			}
+			addBlock(stmts, call)
 
 		}
 
@@ -709,17 +728,17 @@ func (m *Model) TranslateExpr(expr ast.Expr) (b *promela_ast.BlockStmt, err *Par
 		case token.ARROW:
 			if m.containsChan(expr.X) {
 
-				chan_name := TranslateIdent(expr.X, m.Fileset)
+				chan_name := m.getChanStruct(expr.X)
 				if_stmt := &promela_ast.IfStmt{Init: &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}, Guards: []*promela_ast.GuardStmt{}}
 
-				async_rcv := &promela_ast.RcvStmt{Chan: &promela_ast.SelectorExpr{X: &chan_name, Sel: &promela_ast.Ident{Name: "deq"}}, Rhs: &promela_ast.Ident{Name: "state,num_msgs"}, Rcv: m.Fileset.Position(expr.Pos())}
-				sync_rcv := &promela_ast.RcvStmt{Chan: &promela_ast.SelectorExpr{X: &chan_name, Sel: &promela_ast.Ident{Name: "sync"}}, Rhs: &promela_ast.Ident{Name: "state"}, Rcv: m.Fileset.Position(expr.Pos())}
+				async_rcv := &promela_ast.RcvStmt{Chan: &promela_ast.SelectorExpr{X: chan_name.Name, Sel: &promela_ast.Ident{Name: "deq"}}, Rhs: &promela_ast.Ident{Name: "state,num_msgs"}, Rcv: m.Fileset.Position(expr.Pos())}
+				sync_rcv := &promela_ast.RcvStmt{Chan: &promela_ast.SelectorExpr{X: chan_name.Name, Sel: &promela_ast.Ident{Name: "sync"}}, Rhs: &promela_ast.Ident{Name: "state"}, Rcv: m.Fileset.Position(expr.Pos())}
 
 				async_guard := &promela_ast.GuardStmt{Cond: async_rcv, Body: &promela_ast.BlockStmt{List: []promela_ast.Stmt{}}}
 				sync_guard := &promela_ast.GuardStmt{Cond: sync_rcv, Body: &promela_ast.BlockStmt{List: []promela_ast.Stmt{
 					&promela_ast.SendStmt{
 						Chan: &promela_ast.SelectorExpr{
-							X:   &chan_name,
+							X:   chan_name.Name,
 							Sel: &promela_ast.Ident{Name: "rcving"},
 						},
 						Rhs: &promela_ast.Ident{Name: "false"},
@@ -953,7 +972,8 @@ func (m *Model) isWaitgroup(expr ast.Expr) bool {
 			return true
 		}
 
-		if IdenticalExpr(e, &ast.Ident{Name: translateIdent(expr).Name}) {
+		if IdenticalExpr(&ast.Ident{Name: translateIdent(e).Name}, &ast.Ident{Name: translateIdent(expr).Name}) {
+
 			return true
 		}
 	}
@@ -1008,8 +1028,19 @@ func isRecursive(pack string, block *ast.BlockStmt, ast_map map[string]*packages
 
 // Takes a commPar and genrate a define stmt out of the name of the commPar and the function under analysis
 func (m *Model) GenerateDefine(commPar *CommPar) string {
-	name := m.Fun.Name.Name + "_" + commPar.Name.Name
-	m.Defines = append(m.Defines, promela_ast.DefineStmt{Name: &promela_ast.Ident{Name: name}, Rhs: &promela_ast.Ident{Name: DEFAULT_BOUND}})
+	name := "var_" + commPar.Name.Name + strconv.Itoa(m.Fileset.Position(commPar.Expr.Pos()).Line)
+	rhs := DEFAULT_BOUND
+
+	if commPar.Mandatory {
+		rhs += " // mand "
+	} else {
+		rhs += " // opt "
+	}
+	var buff *bytes.Buffer = bytes.NewBuffer([]byte{})
+	printer.Fprint(buff, m.Fileset, commPar.Expr)
+	rhs += string(buff.Bytes()) + " line " + strconv.Itoa(m.Fileset.Position(commPar.Expr.Pos()).Line)
+
+	m.Defines = append(m.Defines, promela_ast.DefineStmt{Name: &promela_ast.Ident{Name: name}, Rhs: &promela_ast.Ident{Name: rhs}})
 
 	return name
 }
@@ -1161,6 +1192,7 @@ func (m *Model) newModel(pack string, fun *ast.FuncDecl) *Model {
 		Fun:                  fun,
 		ContainsChan:         m.ContainsChan,
 		ContainsWg:           m.ContainsWg,
+		ContainsReceiver:     m.ContainsReceiver,
 		Chans:                make(map[ast.Expr]*ChanStruct),
 		WaitGroups:           make(map[ast.Expr]*WaitGroupStruct),
 		Mutexes:              []ast.Expr{},
@@ -1174,8 +1206,6 @@ func (m *Model) newModel(pack string, fun *ast.FuncDecl) *Model {
 		func_counter:         0,
 		For_counter:          m.For_counter,
 		Counter:              m.Counter,
-		Default_lb:           m.Default_lb,
-		Default_ub:           m.Default_lb,
 		AstMap:               m.AstMap,
 		Chan_closing:         m.Chan_closing,
 		Projects_folder:      m.Projects_folder,

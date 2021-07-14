@@ -11,10 +11,10 @@ type GotoEndStmt struct {
 func (i *GotoEndStmt) GoNode() token.Position {
 	return i.Goto
 }
+
 func (i *GotoEndStmt) Print(num_tabs int) string {
 	return "goto " + i.Name
 }
-
 func (s *GotoEndStmt) Clone() Stmt {
 	s1 := &GotoEndStmt{Goto: s.Goto, Name: s.Name}
 	return s1

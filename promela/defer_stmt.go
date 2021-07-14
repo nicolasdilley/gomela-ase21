@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"strconv"
 
-	"github.com/nicolasdilley/ToolX/promela/promela_ast"
+	"github.com/nicolasdilley/gomela/promela/promela_ast"
 )
 
 func (m *Model) translateDeferStmt(s *ast.DeferStmt) (*promela_ast.BlockStmt, *ParseError) {
