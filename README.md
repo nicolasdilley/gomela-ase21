@@ -196,7 +196,7 @@ A line is composed of:
   - Column 13: The name of the communication parameter and their assigned values
   - Column 14: The github link of the original program if it was on github
 
-## Step 2 Reproducing data from benchmark 
+## Step 2 Reproducing data from benchmark from research question 1 in the paper.
 
 To apply Gomela on all benchmarks in the paper simply run: 
 
@@ -250,8 +250,8 @@ The main keyword used are:
   - DL = Double lock property of GCatch
   - GD = A global deadlock was found
   - BMOC = BMOC property of GCATCH 
-  
-## Step 3 Reproducing data from verifying 99 Github projects. (Table 1 and Table 2) 
+
+## Step 3 Reproducing data from verifying 99 Github projects from Research Question 2. (Table 1 and Table 2) 
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
