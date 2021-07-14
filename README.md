@@ -207,7 +207,7 @@ which states that Gomela has found a model deadlock in the model for these value
 ``` ./gomela fs s author/project_name```
 
 
-### Verifying a Go project from Github. 
+### Verifying a Go project from Github
 
 To verify a github project, e.g., to verify [golang/go](https://github.com/golang/go/), run
 
@@ -234,7 +234,7 @@ A line is composed of:
   - Column 13: The name of the communication parameter and their assigned values
   - Column 14: The github link of the original program if it was on github
 
-## Step 2 Reproducing Experimental Results for RQ1.
+## Step 2 Reproducing Experimental Results for RQ1
 
 To apply Gomela on all benchmark examples (which can be found in ```./benchmarks```)
 in the paper simply run: 
@@ -274,7 +274,7 @@ The information in the spreadsheet are displayed as follow:
   - Column 21: The result of running Godel2 on the program. (found = did Godel2 found the bug, crashed= Godel2 crashed, missed= false alarm raised by Godel2)
 
 
-## Step 3 Reproducing Experimental Results for RQ2. (Table 1 and Table 2) 
+## Step 3 Reproducing Experimental Results for RQ2 (Tables 1 and 2)
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
