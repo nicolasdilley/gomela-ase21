@@ -2,29 +2,30 @@
 
 The artifact submission contains:
 
-    - This Markdown document, and
-    - a Docker image, and the Dockerfile used to build it.
+    - This Markdown document,
+    - a Docker image, 
+	- and the Dockerfile used to build it.
 
 The purpose of this document is to describe in details the steps required to assess the artifact associated to our paper.
 
-The aim of this tutorial is that you are able to: 
-  1. Install the docker image
-  2. Understand how to use our tool so that you can verify your own Go programs.
-  3. Reproduce the data of the benchmarks from Figure 9. 
-  4. Reproduce the result of the evaluation from Table 1 and Table 2.
+With this tutorial you shouble be able to: 
+  1. Load the docker image
+  2. Understand how to use Gomela so that you can verify your own Go programs.
+  3. Reproduce the data of the benchmarks from Figure 9 (RQ1). 
+  4. Reproduce the result of the evaluation from Table 1 and Table 2 (RQ2).
   5. Install Gomela on your own machine
 
 
 ### Installing Docker image
 
-First, you need to install and start Docker. 
-The information can be found [here](https://docs.docker.com/get-started/).
+First, you need to install and start Docker. See [the official Docker tutorial](https://docs.docker.com/get-started/) for more information.
 
 The Docker image is available as both as a compressed tar archive and also
 online. Choose one of the two following methods. In both cases, the container
 will load an interactive terminal session from which you can use the
 program ```./gomela```. 
-The image also serves a webserver that can be access via the address ```0.0.0.0:8000```.
+
+The image also runs a webserver that can be access via the address ```0.0.0.0:8000```, this is helpful to retrieve files produced by ```gomela``` within the container.
 
 #### Loading Docker from a tar archive
   1. Ensure you are in the root of this artifact. 
