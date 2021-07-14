@@ -203,7 +203,7 @@ func verifyModel(path string, model_name string, git_link string, f *os.File, co
 		fmt.Printf("Close safety error : %s.\n", colorise(ver.Close_safety_error))
 		fmt.Printf("Negative counter safety error : %s.\n", colorise(ver.Negative_counter_safety_error))
 		fmt.Printf("Double unlock error : %s.\n", colorise(ver.Double_unlock))
-		fmt.Printf("Global deadlock : %s.\n", colorise(ver.Global_deadlock))
+		fmt.Printf("Model deadlock : %s.\n", colorise(ver.Global_deadlock))
 		if ver.Err != "" {
 			red := color.New(color.FgRed).SprintFunc()
 			fmt.Printf("Error : %s.\n", red(ver.Err))
@@ -333,7 +333,7 @@ func verifyWithOptParams(ver *VerificationRun, path string, model_name string, l
 						fmt.Printf("Close safety error : %s.\n", colorise(ver.Close_safety_error))
 						fmt.Printf("Negative counter safety error : %s.\n", colorise(ver.Negative_counter_safety_error))
 						fmt.Printf("Double unlock error : %s.\n", colorise(ver.Double_unlock))
-						fmt.Printf("Global deadlock : %s.\n", colorise(ver.Global_deadlock))
+						fmt.Printf("Model deadlock : %s.\n", colorise(ver.Global_deadlock))
 						if ver.Err != "" {
 							red := color.New(color.FgRed).SprintFunc()
 							fmt.Printf("Error : %s.\n", red(ver.Err))
@@ -410,7 +410,7 @@ func verifyModelWithSpecificValues(model string, params []string) {
 	// verify it
 	verifyModel("./temp.pml", os.Args[2], "", nil, []string{}, 0, params)
 	// delete it
-	// os.Remove("./temp.pml")
+	os.Remove("./temp.pml")
 
 }
 

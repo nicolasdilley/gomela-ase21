@@ -272,7 +272,6 @@ func (m *Model) translateParams(new_mod *Model, decl *ast.FuncDecl, call_expr *a
 					params = append(params, &promela_ast.Param{Name: chan_name, Types: promela_types.Chandef})
 					new_mod.Chans[name] = &ChanStruct{Name: &promela_ast.Ident{Name: chan_name}, Chan: m.Fileset.Position(name.Pos())}
 
-					fmt.Println(new_mod.Chans)
 					ch := m.getChanStruct(call_expr.Args[counter])
 
 					args = append(args, ch.Name)
