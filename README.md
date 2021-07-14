@@ -166,10 +166,10 @@ To verify this program, we need Gomela to generate a model:
 
 ```./gomela fs examples/preload```
 
-This creates a folder ```./result_current_date``` which contains the Promela model genarated in ```./results_<current_date>/preload/main++preload8.pml```. (Make sure to replace <current_date> with the corresponding date at which the results folder was created)
+This creates a folder ```./result_<current_date>``` which contains the Promela model genarated in ```./results_<current_date>/preload/main++preload8.pml```. (Make sure to replace <current_date> with the corresponding date at which the results folder was created)
 
 If we look inside the model by running 
-```cat result_current_date/preload/main++preload8.pml```
+```cat result_<current_date>/preload/main++preload8.pml```
 
 we can see that at line 7, 8 and 9, ```variable var_n8```,
 ```preload_runtime_NumCPU__```, ```var_trees8``` which refers to variable n,
@@ -184,7 +184,7 @@ model.
 
 To verify, the model where n = 1, runtime.NumCPU = 2 and trees = 3, run:
 
-```./gomela verify result_current_date/preload/main++preload8.pml 1 2 3```
+```./gomela verify result_<current_date>/preload/main++preload8.pml 1 2 3```
 
 The output should be similar to 
 ```
@@ -300,7 +300,7 @@ for valuation that resulted in a strictly positive score:
   - The five-number summary for the mutex safety errors found
 
 To get these run: 
-```./gomela full_stats result_<current_date>/log.csv commits.csv result_current_date/verification.csv```
+```./gomela full_stats result_<current_date>/log.csv commits.csv result_<current_date>/verification.csv```
 
 
 ## Installing Gomela on your own machine
