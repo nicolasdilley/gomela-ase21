@@ -27,27 +27,26 @@ program ```./gomela```.
 The image also serves a webserver that can be access via the address ```0.0.0.0:8000```.
 
 #### Loading Docker from a tar archive
-
   1. Ensure you are in the root of this artifact. 
   You should see the compressed tar archive gomela-ase21.tar.
 
   2. To load the Docker container from this archive, run:
 
-    ```docker load < gomela-ase21.tar```
+  ```docker load < gomela-ase21.tar```
 
   3. To enter the container with an interactive terminal session, run:
 
-    ```docker run -it -p 8000:8000 gomela-ase21```
+  ```docker run -it -p 8000:8000 gomela-ase21```
 
 #### Loading Docker from online
 
   1. To download the image from the web, run:
 
-    ```docker pull nicolasdilley/gomela-ase21```
+  ```docker pull nicolasdilley/gomela-ase21```
 
   2. To enter the container with an interactive terminal session, run:
 
-    ```docker run -it -p 8000:8000 nicolasdilley/gomela-ase21```
+  ```docker run -it -p 8000:8000 nicolasdilley/gomela-ase21```
 
 ## Step 1 : Understanding and using Gomela
 
@@ -157,7 +156,7 @@ file. In the code above, we have specified that the name of the package was
 ### Verifying running example "Preload" from paper (Fig. 1)
 
 The function ```Preload``` from the paper in Fig. 1 can be found in [examples/preload_simplifed.go](https://github.com/nicolasdilley/Gomela/blob/rewrite/examples/preload/preload_simplifed.go). 
-This function contains a deadlock when ```0\<runtime.NumCPU()``` and ```0\<n\<|trees|−1```
+This function contains a deadlock when ```0 < runtime.NumCPU()``` and ```0 < n <|trees|−1```
 
 To verify that the function indeed contains a deadlock, we need to first generate a model:
 
@@ -233,7 +232,7 @@ A line is composed of:
   - Column 13: The name of the communication parameter and their assigned values
   - Column 14: The github link of the original program if it was on github
 
-## Step 2 Reproducing data from benchmark from research question 1 in the paper.
+## Step 2 Reproducing Experimental Results for RQ1.
 
 To apply Gomela on all benchmarks (which can be found in ```./benchmarks```)
 in the paper simply run: 
@@ -274,7 +273,7 @@ The information in the spreadsheet are displayed as follow:
   - Column 21: The result of running Godel2 on the program. (found = did Godel2 found the bug, crashed= Godel2 crashed, missed= false alarm raised by Godel2)
 
 
-## Step 3 Reproducing data from verifying 99 Github projects from Research Question 2. (Table 1 and Table 2) 
+## Step 3 Reproducing experimental results for RQ2. (Table 1 and Table 2) 
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
@@ -332,7 +331,7 @@ You then need to compile it by running:
   * This command generates an executable called ```gomela```. Now, we are ready to run Gomela.
 
 
-## Tutorial
+## Other example
 
 [FindAll](https://github.com/google/gops/blob/6fb0d860e5fa50629405d9e77e255cd32795967e/goprocess/gp.go#L29)
 is a function that is found in an open source project called [gops](https://github.com/google/gops) 
