@@ -37,7 +37,7 @@ The image also runs a webserver that can be access via the address ```0.0.0.0:80
 
   3. To enter the container with an interactive terminal session, run:
 
-  ```docker run -it -p 8000:8000 gomela-ase21```
+  ```docker run -it -p 8000:8000 nicolasdilley/gomela-ase21```
 
 #### Loading Docker from online
 
@@ -113,9 +113,9 @@ When this steps is done, to generate promela models from the Go source and to ve
 The output of the command line should be:
 ```
 -------------------------------
-Result for main_main.pml
-Number of states :  29
-Time to verify model :  0  ms
+Result for source:main++main5.pml
+Number of states :  163
+Time to verify model :  1817  ms
 Send on close safety error : false.
 Close safety error : false.
 Negative counter safety error : false.
@@ -136,9 +136,9 @@ The output of the command line should be :
 
 ```
 -------------------------------
-Result for main_main.pml
-Number of states :  9
-Time to verify model :  0  ms
+Result for source:main++main5.pml
+Number of states :  25
+Time to verify model :  1644  ms
 Send on close safety error : false.
 Close safety error : false.
 Negative counter safety error : false.
@@ -148,13 +148,14 @@ Model deadlock : true.
 ```
 
 This tells you that a model deadlock was found in the model. The generated
-model is named ```main_main.pml``` which comes from the concatenation of the
-name of the package and the name of the function being modelled. 
+model is named ```main++main5.pml``` which comes from the concatenation of
+the name of the package, the name of the function being modelled and the line
+number at which the function is declared. 
 
 The extension of the file ```.pml``` is used to specify that it is a Promela
 file. In the code above, we have specified that the name of the package was
-```main``` and the name of the function is ```main``` hence
-```main_main.pml```.
+```main``` and the name of the function is ```main``` declared at line 5
+hence ```main++main5.pml```.
 
 
 ### Verifying the paper's running example (Function preload() in Fig. 1)
@@ -164,7 +165,7 @@ This function contains a deadlock when ```0 < runtime.NumCPU()``` and ```0 < n <
 
 To verify this program, we need Gomela to generate a model:
 
-```./gomela fs examples/preload```
+```./gomela fs examples/preload  # runtime : ~46s```s
 
 This creates a folder ```./result_<current_date>``` which contains the Promela model genarated in ```./results_<current_date>/preload/main++preload8.pml```. (Make sure to replace <current_date> with the corresponding date at which the results folder was created)
 
@@ -184,7 +185,7 @@ model.
 
 To verify, the model where n = 1, runtime.NumCPU = 2 and trees = 3, run:
 
-```./gomela verify result_<current_date>/preload/main++preload8.pml 1 2 3```
+```./gomela verify result_<current_date>/preload/main++preload8.pml 1 2 3 # runtime : ~2s ```
 
 The output should be similar to 
 ```
