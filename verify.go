@@ -47,7 +47,6 @@ func VerifyModels(models []os.FileInfo, dir_name string, bounds_to_check []inter
 		return
 	}
 
-	fmt.Println(models)
 	// verify each model
 	for _, model := range models {
 		if strings.HasSuffix(model.Name(), ".pml") { // make sure its a .pml file
@@ -155,7 +154,7 @@ func verifyModel(path string, model_name string, git_link string, f *os.File, co
 
 	// Verify with SPIN
 	fmt.Println("verifying : ", path)
-	command := exec.Command("timeout", "30", "spin", "-run", "-DVECTORSZ=2056", "-m10000000", "-w26", path, "-f")
+	command := exec.Command("timeout", "30", "spin", "-run", "-DVECTORSZ=4508", "-m10000000", "-w26", path, "-f")
 	command.Stdout = &output
 	command.Stderr = &err_output
 	pre := time.Now()

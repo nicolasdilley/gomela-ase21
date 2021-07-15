@@ -125,7 +125,7 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 
 				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name}, Mandatory: true, Rhs: &promela_ast.Ident{Name: def}, Types: promela_types.Int}}, proc.Body.List...)
 			} else {
-				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name + commPar.Name.Name}, Mandatory: false, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}, Types: promela_types.Int}}, proc.Body.List...)
+				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name}, Mandatory: false, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}, Types: promela_types.Int}}, proc.Body.List...)
 			}
 		} else {
 			proc.Params = append(proc.Params, &promela_ast.Param{Name: commPar.Name.Name, Types: promela_types.Int})
