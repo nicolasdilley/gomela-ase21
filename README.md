@@ -212,7 +212,7 @@ which states that Gomela has found a model deadlock in the model for these value
 
 To verify a github project, e.g., to verify [golang/go](https://github.com/golang/go/), run
 
-```./gomela fs s golang/go```
+```./gomela fs s golang/go ```
 
 The result of the verification will be printed to the terminal as it is running.
 Aditionally all the results of the verification can be found in  ```./results_<current_date>/verification.csv```
@@ -240,7 +240,7 @@ A line is composed of:
 To apply Gomela on all benchmark examples (which can be found in ```./benchmarks```)
 in the paper simply run: 
 
-``` ./gomela fs benchmarks ```
+``` ./gomela fs benchmarks # runtime: ~2m```
 
 which will output all the results of the verification.
 
@@ -279,9 +279,17 @@ The information in the spreadsheet are displayed as follow:
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
-To automate the verification of the 99 GitHub projects, run:
+To fully model and verify all 99 Github projects, the required time is more
+than 15hours. Therefore, for your convenience, the image already contains the
+models and the results of the verification in ```RQ2-results```. 
 
-```./gomela fs l commits.csv```
+to get these run:
+```./gomela full_stats RQ2_results/log.csv commits.csv RQ2_results/verification.csv```
+
+
+However, to automate the verification of the 99 GitHub projects, run:
+
+```./gomela fs l commits.csv # runtime modelling depends on internet connection to download Github projects, ~10h for verification```
 
 This will go through each project in ```./commits.csv```, git clone each
 projects, generate all the Promela models and verify them. (This can take up
@@ -302,7 +310,6 @@ for valuation that resulted in a strictly positive score:
 
 To get these run: 
 ```./gomela full_stats result_<current_date>/log.csv commits.csv result_<current_date>/verification.csv```
-
 
 ## Installing Gomela on your own machine
 
