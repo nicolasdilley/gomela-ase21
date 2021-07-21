@@ -128,7 +128,7 @@ func (m *Model) translateCommParams(new_mod *Model, isGo bool, call_expr *ast.Ca
 				proc.Body.List = append([]promela_ast.Stmt{&promela_ast.CommParamDeclStmt{Name: &promela_ast.Ident{Name: var_name}, Mandatory: false, Rhs: &promela_ast.Ident{Name: OPTIONAL_BOUND}, Types: promela_types.Int}}, proc.Body.List...)
 			}
 		} else {
-			proc.Params = append(proc.Params, &promela_ast.Param{Name: commPar.Name.Name, Types: promela_types.Int})
+			proc.Params = append(proc.Params, &promela_ast.Param{Name: "var_" + commPar.Name.Name, Types: promela_types.Int})
 
 			arg, err1 := m.TranslateArg(call_expr.Args[commPar.Pos])
 
@@ -358,11 +358,12 @@ func (m *Model) findFunDecl(call_expr *ast.CallExpr) (*ast.FuncDecl, *ast.CallEx
 			}
 		}
 
-		for ch, _ := range m.Chans {
-			if !containsExpr(new_call_expr.Args, ch) {
-				chan_name := TranslateIdent(ch, m.Fileset)
-				names = append(names, &ast.Ident{Name: chan_name.Name, NamePos: ch.Pos()})
-				new_call_expr.Args = append(new_call_expr.Args, ch)
+		for _, arg := range new_call_expr.Args {
+			if m.containsChan(arg) {
+				chan_name := m.getChanStruct(arg)
+				name := &ast.Ident{Name: chan_name.Name.Name, NamePos: arg.Pos()}
+				names = append(names, name)
+				new_call_expr.Args = append(new_call_expr.Args, name)
 			}
 		}
 		if len(names) > 0 {
