@@ -364,10 +364,11 @@ func model(ver *VerificationInfo) []string {
 		path := os.Args[3]
 		// PROJECTS_FOLDER = path
 
+		path, _ = filepath.Abs(path)
 		files, _ := ioutil.ReadDir(path)
 
 		for _, f := range files {
-			parseFolder(path+f.Name(), ver)
+			parseFolder(path+"/"+f.Name(), ver)
 		}
 		return os.Args[3:]
 	case "s":
