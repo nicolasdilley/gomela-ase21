@@ -1,11 +1,8 @@
 # Automated Verification of Go Programs via Bounded Model Checking
 [![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101557)
 
-The artifact submission contains:
-
-    - This Markdown document,
-    - a Docker image, 
-	- and the Dockerfile used to build it.
+Gomela is a full-scale verification tool that verifies message passing concurrency in Go programs.
+The paper describing the tool can be found in ```ase21-prepreprint.pdf```.
 
 The purpose of this document is to describe in details the steps required to assess the artifact associated to our paper.
 
@@ -150,20 +147,20 @@ hence ```main++main5.pml```.
 
 ### Verifying the paper's running example (Function preload() in Fig. 1)
 
-The function ```preload``` from the paper in Fig. 1 can be found in [examples/preload_simplifed.go](https://github.com/nicolasdilley/Gomela/blob/rewrite/examples/preload/preload_simplifed.go). 
+The function ```preload``` from the paper in Fig. 1 can be found in [examples/preload.go](https://github.com/nicolasdilley/gomela-ase21/blob/master/examples/preload/preload.go). 
 This function contains a deadlock when ```0 < runtime.NumCPU()``` and ```0 < n <|trees|−1```
 
 To verify this program, we need Gomela to generate a model:
 
-```./gomela fs examples/preload  # runtime : ~46s```s
+```./gomela fs examples/preload  # runtime : ~1m37s```s
 
 This creates a folder ```./result_<current_date>``` which contains the Promela model genarated in ```./results_<current_date>/preload/main++preload8.pml```. (Make sure to replace <current_date> with the corresponding date at which the results folder was created)
 
 If we look inside the model by running 
 ```cat result_<current_date>/preload/main++preload8.pml```
 
-we can see that at line 7, 8 and 9, ```variable var_n8```,
-```preload_runtime_NumCPU__```, ```var_trees8``` which refers to variable n,
+we can see that at line 6, 7 and 8, the definitions of variables ```def_var_n```,
+```def_var_runtime_NumCPU10```, ```var_trees``` which refers to variable n,
 runtime.NumCPU() and trees respectively in the original program and needs to
 be given a proper value because they are mandatory variables
 (currently assigned to ```??```). 
@@ -195,12 +192,10 @@ Model deadlock : true.
 which states that Gomela has found a model deadlock in the model for these values.
 
 
-``` ./gomela fs s author/project_name```
-
-
 ### Verifying a Go project from Github
 
-To verify a github project, e.g., to verify [golang/go](https://github.com/golang/go/), run
+The command ``` ./gomela fs s author/project_name``` can be used to verify a github project.
+e.g., to verify [golang/go](https://github.com/golang/go/) run: 
 
 ```./gomela fs s golang/go ```
 
@@ -230,7 +225,7 @@ A line is composed of:
 To apply Gomela on all benchmark examples (which can be found in ```./benchmarks```)
 in the paper simply run: 
 
-``` ./gomela fs benchmarks # runtime: ~2m```
+``` ./gomela fs benchmarks # runtime: ~4m```
 
 which will output all the results of the verification.
 
