@@ -1,5 +1,5 @@
 # Automated Verification of Go Programs via Bounded Model Checking
-![https://doi.org/10.5281/zenodo.5101557](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)
+[![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101557)
 
 The artifact submission contains:
 
