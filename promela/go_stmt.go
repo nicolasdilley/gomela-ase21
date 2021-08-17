@@ -492,6 +492,18 @@ func (m *Model) updateDeclWithRcvAndStructs(decl ast.FuncDecl, call_expr *ast.Ca
 	new_call_expr := *call_expr
 	new_call_expr.Args = append([]ast.Expr{}, call_expr.Args...)
 
+	exprs := []ast.Expr{}
+	for _, arg := range new_call_expr.Args { // Remove the potential pointers
+		switch arg := arg.(type) {
+		case *ast.UnaryExpr:
+			exprs = append(exprs, arg.X)
+		default:
+			exprs = append(exprs, arg)
+		}
+	}
+
+	new_call_expr.Args = exprs
+
 	if new_decl.Recv != nil { // put the receiver as the first param of decl
 
 		switch call := call_expr.Fun.(type) {

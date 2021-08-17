@@ -1,4 +1,5 @@
 # Automated Verification of Go Programs via Bounded Model Checking
+![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)
 
 The artifact submission contains:
 
@@ -16,6 +17,7 @@ With this tutorial you shouble be able to:
   5. Install Gomela on your own machine
 
 
+
 ### Installing Docker image
 
 First, you need to install and start Docker. See [the official Docker tutorial](https://docs.docker.com/get-started/) for more information.
@@ -27,19 +29,7 @@ program ```./gomela```.
 
 The image also runs a webserver that can be access via the address ```0.0.0.0:8000```, this is helpful to retrieve files produced by ```gomela``` within the container.
 
-#### Loading Docker from a tar archive
-  1. Ensure you are in the root of this artifact. 
-  You should see the compressed tar archive gomela-ase21.tar.
-
-  2. To load the Docker container from this archive, run:
-
-  ```docker load < gomela-ase21.tar```
-
-  3. To enter the container with an interactive terminal session, run:
-
-  ```docker run -it -p 8000:8000 nicolasdilley/gomela-ase21```
-
-#### Loading Docker from online
+#### Loading Docker image 
 
   1. To download the image from the web, run:
 
