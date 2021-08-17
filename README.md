@@ -1,8 +1,12 @@
 # Automated Verification of Go Programs via Bounded Model Checking
 [![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101557)
 
-Gomela is a full-scale verification tool that verifies message passing concurrency in Go programs.
-The paper describing the tool can be found in ```ase21-prepreprint.pdf```.
+Gomela is a verification tool that verifies message passing
+concurrency in Go programs. Gomela was introduced in "Automated
+Verification of Go Programs via Bounded Model Checking" by Nicolas
+Dilley and Julien Lange, to appear at ASE 1021. Pre-print version of
+the paper can be found
+[here](https://github.com/nicolasdilley/gomela-ase21/blob/main/ase21-prepreprint.pdf).
 
 The purpose of this document is to describe in details the steps required to assess the artifact associated to our paper.
 
