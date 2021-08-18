@@ -1,8 +1,12 @@
 # Automated Verification of Go Programs via Bounded Model Checking
 [![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101557)
 
-Gomela is a full-scale verification tool that verifies message passing concurrency in Go programs.
-The paper describing the tool can be found in ```ase21-prepreprint.pdf```.
+Gomela is a verification tool that verifies message passing
+concurrency in Go programs. Gomela was introduced in "Automated
+Verification of Go Programs via Bounded Model Checking" by Nicolas
+Dilley and Julien Lange, to appear at ASE 1021. Pre-print version of
+the paper can be found
+[here](https://github.com/nicolasdilley/gomela-ase21/blob/main/ase21-prepreprint.pdf).
 
 The purpose of this document is to describe in details the steps required to assess the artifact associated to our paper.
 
@@ -220,7 +224,7 @@ A line is composed of:
   - Column 13: The name of the communication parameter and their assigned values
   - Column 14: The github link of the original program if it was on github
 
-## Step 2 Reproducing Experimental Results for RQ1
+## Step 2: Reproducing Experimental Results for RQ1
 
 To apply Gomela on all benchmark examples (which can be found in ```./benchmarks```)
 in the paper simply run: 
@@ -260,7 +264,7 @@ The information in the spreadsheet are displayed as follow:
   - Column 21: The result of running Godel2 on the program. (found = did Godel2 found the bug, crashed= Godel2 crashed, missed= false alarm raised by Godel2)
 
 
-## Step 3 Reproducing Experimental Results for RQ2 (Tables 1 and 2)
+## Step 3: Reproducing Experimental Results for RQ2 (Tables 1 and 2)
 
 The list of projects (along with their commit) can be found in ```./commits.csv```
 
