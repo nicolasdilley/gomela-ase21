@@ -1,5 +1,5 @@
 # Automated Verification of Go Programs via Bounded Model Checking
-[![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101557)
+[![DOI link](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.5101557%20-blue)](https://doi.org/10.5281/zenodo.5101556)
 
 Gomela is a verification tool that verifies message passing
 concurrency in Go programs. Gomela was introduced in "Automated
